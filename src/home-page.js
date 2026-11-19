@@ -10,7 +10,6 @@ const PACKAGE_JSON = require('../package.json')
 const { fmtDuration, fmtBytes } = require('./fmt')
 const summary = require('./summary')
 
-const DOCS_URL = 'https://u32-local-server.u32.cn/'
 const GITHUB_URL = 'https://github.com/u32-cn/u32-local-server'
 
 // 六个功能入口：顺序即视觉顺序，路径保持相对写法以兼容反向代理子路径
@@ -190,7 +189,7 @@ function renderPage(config, snap) {
       <a href="./status">状态</a>
       <a href="./config">配置</a>
       <span class="sep"></span>
-      <a href="${DOCS_URL}" target="_blank" rel="noopener">文档 ↗</a>
+      <a href="./docs" target="_blank" rel="noopener">文档 ↗</a>
     </nav>
   </div>
 </header>
@@ -290,7 +289,7 @@ function renderPage(config, snap) {
     <span>u32-local-server v${version} · MIT</span>
     <span>PID ${snap.pid}</span>
     <div class="links">
-      <a href="${DOCS_URL}" target="_blank" rel="noopener">文档站</a>
+      <a href="./docs" target="_blank" rel="noopener">文档站</a>
       <a href="./llms.txt" target="_blank" rel="noopener">llms.txt</a>
       <a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>
     </div>
