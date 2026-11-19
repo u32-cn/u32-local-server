@@ -36,8 +36,9 @@ jobs:
           }
           Write-Host "版本校验通过：$tag == v$pkgVersion"
 
+      # lock 文件的 resolved 指向阿里云私有 registry（带 token，runner 无凭证），显式改用 npmjs 公共源
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --registry=https://registry.npmjs.org
 
       - name: Build icons
         run: node scripts/build-icon.js
