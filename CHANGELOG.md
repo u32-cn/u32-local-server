@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.7.0] - 2026-11-19
 
 ### Added
 - ✨ 新增 `/picker-guide` 文件选择器引导页：三张模式卡片（打开文件 / 选择目录 / 另存为）各附 iframe 接入脚本与「试用」按钮，点击后以内置模态 iframe 窗口打开 /picker，选中结果实时显示在卡片下方；首页六宫格「文件选择器」入口改指向该引导页（/picker 与 /picker-demo 保持不变）
