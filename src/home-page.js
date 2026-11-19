@@ -151,10 +151,14 @@ function renderPage(config, snap) {
     background: var(--card); border: 2px solid var(--blue); border-radius: var(--radius);
     box-shadow: 0 4px 16px rgba(37, 99, 235, .10);
   }
-  .ai-top-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; font-size: 13.5px; }
+  .ai-top-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; font-size: 13.5px; flex-wrap: wrap; }
   .ai-top-head svg { width: 17px; height: 17px; stroke: var(--blue); fill: none; stroke-width: 1.7; stroke-linejoin: round; flex-shrink: 0; }
   .ai-top-head b { font-weight: 500; color: var(--blue); }
-  .ai-top-head span { font-size: 12px; color: var(--dim); }
+  .ai-top-head > span:first-of-type { font-size: 12px; color: var(--dim); }
+  .ai-top-llms { margin-left: auto; display: flex; align-items: center; gap: 7px; }
+  .ai-top-llms code { font-family: var(--mono); font-size: 11.5px; color: var(--dim); background: #F4F4F7; border-radius: 6px; padding: 3px 9px; }
+  .ai-top-llms button { font-family: inherit; font-size: 11.5px; color: var(--dim); background: #fff; border: 1px solid var(--line-hi); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .ai-top-llms button:hover { color: var(--blue); border-color: var(--blue); }
   .ai-top-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
   .ai-top-list .pr { padding: 7px 0; border-bottom: 1px solid #F2F2F5; }
   .ai-top-list .pr:nth-last-child(-n+2) { border-bottom: none; }
@@ -254,6 +258,11 @@ function renderPage(config, snap) {
       <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>
       <b>接入 AI</b>
       <span>把下面的指令发给任意能发 HTTP 请求的 AI 工具（WorkBuddy / Cursor 等），AI 读 llms.txt 后即可操作本服务</span>
+      <span class="ai-top-llms">
+        <code>http://127.0.0.1:${config.port}/llms.txt</code>
+        <button type="button" data-view-llms>查看</button>
+        <button type="button" data-copy-llms>复制地址</button>
+      </span>
     </div>
     <div class="ai-top-list">
       ${renderPrompts(config.port)}
