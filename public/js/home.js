@@ -238,6 +238,12 @@
       return
     }
 
+    var llmsView = e.target.closest('[data-view-llms]')
+    if (llmsView) {
+      window.open('./llms.txt', '_blank', 'noopener')
+      return
+    }
+
     var autoAct = e.target.closest('#alert-auto-act')
     if (autoAct) {
       e.preventDefault()

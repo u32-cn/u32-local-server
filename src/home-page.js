@@ -266,6 +266,7 @@ function renderPage(config, snap) {
     <div class="d-body">
       <div class="lead">
         <span>http://localhost:${config.port}/llms.txt</span>
+        <button type="button" data-view-llms>查看</button>
         <button type="button" data-copy-llms>复制地址</button>
       </div>
       ${renderPrompts()}

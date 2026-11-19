@@ -498,7 +498,7 @@ src/cmd-service.js    # register/unregister：注册表 Run 键自启 + 右键�
 - **`docs/` 是文档站主页**：仓库 `docs/` 目录就是 GitHub Pages 站点根，`docs/index.html` 即站点首页（<https://u32-local-server.u32.cn/>），GitHub Pages 出站、EdgeOne 回源加速
 - `docs/reader.html?doc=<id>` - 站内 markdown 阅读页，`?doc=` 取 `docs/readme/` 下的文件名（不含 `.md`）
 - `docs/readme/*.md` - **文档唯一源**：既是 Pages 站点的正文，也是 npm 包内 `/docs/<name>.md` 的伺服内容（`src/router.js` 按文件名映射到该目录），改一处两边生效
-- `public/llms.txt` - 面向 LLM 的功能索引，指向上述 `/docs/*.md`
+- `docs/llms.txt` - 面向 LLM 的功能索引，指向上述 `/docs/*.md`；**唯一源**：本地服务 `/llms.txt` 动态替换其中 `{{PORT}}` 后返回，Pages 站点原样发布（含占位符与默认端口说明）
 - `AGENTS.md` - AI agent 行为纪律（事实性内容以本 README 为准）
 
 ## 许可证

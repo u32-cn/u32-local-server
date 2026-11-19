@@ -29,6 +29,7 @@
     "src",
     "public",
     "docs/readme",
+    "docs/llms.txt",
     "package.json",
     "README.md",
     "CHANGELOG.md"

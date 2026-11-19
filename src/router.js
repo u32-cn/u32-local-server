@@ -106,7 +106,7 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     }
     if (url.pathname === '/llms.txt') {
       logger.debug(`[INFO] Routing to llms.txt\n`)
-      const llmsPath = path.join(publicDir, 'llms.txt')
+      const llmsPath = path.join(__dirname, '../docs/llms.txt')
       if (fs.existsSync(llmsPath)) {
         let content = fs.readFileSync(llmsPath, 'utf8')
         content = content.replace(/\{\{PORT\}\}/g, String(config.port))

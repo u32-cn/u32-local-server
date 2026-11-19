@@ -11,7 +11,7 @@
 5. **敏感信息红线**：
    - `/status` 不采集任何敏感信息是既定设计（`process.env`、磁盘卷、主机名、用户名/uid/gid、家目录、网络接口 IP/MAC 一律不读取），改代码不得引入采集
    - 不提交含本机绝对路径、密钥、token 的文件（register 生成的脚本统一写入 `runtime/`，该目录已在 `.gitignore`，保持忽略）
-6. **文档同步义务**：改功能时同步 `docs/readme/*.md`（唯一源，同时供 Pages 站点与 `/docs/<name>.md` 使用）、`public/llms.txt`、`CHANGELOG.md`；涉及桥连接机制时同步 `docs/readme/bridge-connection-lifecycle.md`
+6. **文档同步义务**：改功能时同步 `docs/readme/*.md`（唯一源，同时供 Pages 站点与 `/docs/<name>.md` 使用）、`docs/llms.txt`（`/llms.txt` 的唯一源，本地服务动态替换 `{{PORT}}`；Pages 站点原样发布，改过一次后就别再复制出别的副本）、`CHANGELOG.md`；涉及桥连接机制时同步 `docs/readme/bridge-connection-lifecycle.md`
 
 ## 易错坑（实测）
 
