@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
-- ✨ 新增 `/picker-guide` 文件选择器引导页：三张模式卡片（打开文件 / 选择目录 / 另存为）各附最小接入脚本与「试用」按钮，弹窗打开 /picker 并在卡片下方实时显示 postMessage 回传 JSON；首页六宫格「文件选择器」入口改指向该引导页（/picker 与 /picker-demo 保持不变）
+- ✨ 新增 `/picker-guide` 文件选择器引导页：三张模式卡片（打开文件 / 选择目录 / 另存为）各附 iframe 接入脚本与「试用」按钮，点击后以内置模态 iframe 窗口打开 /picker，选中结果实时显示在卡片下方；首页六宫格「文件选择器」入口改指向该引导页（/picker 与 /picker-demo 保持不变）
 - 📚 文档站纳入本地服务：新增 `/docs`（重定向）、`/docs/index.html`、`/docs/reader.html`、`/docs/assets/...`、`/docs/readme/<name>.md` 路由，离线环境下访问 `http://127.0.0.1:<port>/docs` 即可看到完整排版文档；`/docs/<name>.md` 旧直链兼容保留；各页面导航「文档 ↗」改指阅读页
 - ✨ 首页重做为一屏控制台：顶栏 → 状态带（运行时长 / 允许路径 / 桥在线 / 产物占用）→ 六宫格入口 → 运维行 → 折叠区（AI 指令 / 常用命令）。全页高度由约 3300px 降到一屏，移除「关于 / 功能特性 / 快速开始 / 命令参考」四块重复文案，产品介绍统一归文档站
 - ✨ 新增 `GET /api/summary`（首页状态带数据源，与 SSR 首屏同一份计算，只含计数与布尔）与 `GET /api/service-status`（只读探测开机自启 / 右键菜单是否已注册：Windows 查 Run 键与 shell 键，Linux 查 systemd unit 文件，结果缓存 1.5s）
