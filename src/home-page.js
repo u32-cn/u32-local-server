@@ -20,7 +20,7 @@ const ENTRIES = [
     icon: '<path d="M3 7h5l2 2h11v10H3z"/>',
   },
   {
-    name: '文件选择器', rel: './picker', desc: 'Win10 风格对话框，可嵌 iframe，支持打开 / 选目录 / 另存为',
+    name: '文件选择器', rel: './picker-guide', desc: '三种模式配置脚本与在线试用，Win10 风格对话框，可嵌 iframe',
     icon: '<path d="M5 3l14 8-6 1 3 6-3 1-3-6-4 4z"/>',
   },
   {

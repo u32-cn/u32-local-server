@@ -400,7 +400,11 @@ location / {
 | `/config` | 配置管理页面 |
 | `/config/api` | 配置 REST API |
 | `/llms.txt` | 站点说明（面向 LLM） |
-| `/docs/<name>.md` | 功能文档（读包内 `docs/readme/`，与文档站同一批文件）|
+| `/docs` | 重定向到 `/docs/index.html`（文档站首页，离线可看）|
+| `/docs/index.html`、`/docs/reader.html` | 文档站页面（固定白名单，读包内 `docs/`）|
+| `/docs/assets/...` | 文档站静态资源（css/js/字体/marked vendor）|
+| `/docs/readme/<name>.md` | 功能文档（阅读页 fetch 目标，与 Pages 站点同路径同文件）|
+| `/docs/<name>.md` | 功能文档旧直链（兼容保留，读包内 `docs/readme/`）|
 | `/public/...` | 静态资源 |
 | `/` | 首页；Linux 下其他路径直接映射到文件系统 |
 
@@ -491,12 +495,12 @@ src/cmd-service.js    # register/unregister：注册表 Run 键自启 + 右键�
 2. `CHANGELOG.md` 顶部新增 `[X.Y.Z] - 日期` 段，按 Added / Changed / Fixed / Docs 分类
 3. 提交 `chore(release): vX.Y.Z——<改动摘要>`
 4. 打 tag `vX.Y.Z` 并推送
-5. `npm publish`（`publishConfig` 已指向 npmjs.org；`files` 白名单含 `src/`、`public/`、`docs/readme/`、`package.json`、`README.md`、`CHANGELOG.md`；`docs/index.html` 等站点文件、`test/`、`LICENSE` 不进 npm 包）
+5. `npm publish`（`publishConfig` 已指向 npmjs.org；`files` 白名单含 `src/`、`public/`、`docs/readme/`、`docs/llms.txt`、`docs/index.html`、`docs/reader.html`、`docs/assets/`、`package.json`、`README.md`、`CHANGELOG.md`；`test/`、`LICENSE` 不进 npm 包）
 
 ### 相关文档
 
-- **`docs/` 是文档站主页**：仓库 `docs/` 目录就是 GitHub Pages 站点根，`docs/index.html` 即站点首页（<https://u32-local-server.u32.cn/>），GitHub Pages 出站、EdgeOne 回源加速
-- `docs/reader.html?doc=<id>` - 站内 markdown 阅读页，`?doc=` 取 `docs/readme/` 下的文件名（不含 `.md`）
+- **`docs/` 是文档站主页**：仓库 `docs/` 目录就是 GitHub Pages 站点根，`docs/index.html` 即站点首页（<https://u32-local-server.u32.cn/>），GitHub Pages 出站、EdgeOne 回源加速；**本地服务同样伺服这批文件**（`/docs`、`/docs/index.html`、`/docs/reader.html`、`/docs/assets/...`），离线环境下访问 `http://127.0.0.1:<port>/docs` 即可看到完整排版文档
+- `docs/reader.html?doc=<id>` - 站内 markdown 阅读页，`?doc=` 取 `docs/readme/` 下的文件名（不含 `.md`）；Pages 与本地服务同路径可用（本地 fetch 目标 `/docs/readme/<id>.md` 由 `src/router.js` 映射到包内目录）
 - `docs/readme/*.md` - **文档唯一源**：既是 Pages 站点的正文，也是 npm 包内 `/docs/<name>.md` 的伺服内容（`src/router.js` 按文件名映射到该目录），改一处两边生效
 - `docs/llms.txt` - 面向 LLM 的功能索引，指向上述 `/docs/*.md`；**唯一源**：本地服务 `/llms.txt` 动态替换其中 `{{PORT}}` 后返回，Pages 站点原样发布（含占位符与默认端口说明）
 - `AGENTS.md` - AI agent 行为纪律（事实性内容以本 README 为准）

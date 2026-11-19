@@ -168,6 +168,38 @@ u32-ls open .</pre>
         <p data-u32-name="note-1"><b>默认拒绝所有访问。</b>加允许目录之前什么都读不到，这是设计不是 bug。</p>
         <p data-u32-name="note-2"><b>只监听本机。</b>不暴露公网；写接口另带同源 Origin 校验，挡住跨站请求。</p>
         <p data-u32-name="note-3"><b>装在哪。</b>在 AI 工具的托管终端里 <code>npm i -g</code> 可能落到工具自带的 node，装前先看 <code>npm config get prefix</code>。</p>
+        <div class="ai-use-block" data-u32-name="ai-use-block">
+          <div class="ai-use-head" data-u32-name="ai-use-head">
+            <span class="ai-use-title" data-u32-name="ai-use-title">让 AI 使用：</span>
+            <span class="ai-use-desc" data-u32-name="ai-use-desc">服务启动后，把下面的指令发给任意能发 HTTP 请求的 AI 工具即可。</span>
+          </div>
+          <div class="ai-use-list" data-u32-name="ai-use-list">
+            <div class="ai-use-row" data-u32-name="ai-use-row-1">
+              <code class="ai-use-cmd" data-u32-name="ai-use-cmd-1">读取 http://127.0.0.1:19527/llms.txt ，然后用浏览器桥控制页面</code>
+              <button type="button" class="btn btn-ghost ai-use-copy" data-u32-name="ai-use-copy-1">复制</button>
+            </div>
+            <div class="ai-use-row" data-u32-name="ai-use-row-2">
+              <code class="ai-use-cmd" data-u32-name="ai-use-cmd-2">读取 http://127.0.0.1:19527/llms.txt ，然后读取本地文件内容</code>
+              <button type="button" class="btn btn-ghost ai-use-copy" data-u32-name="ai-use-copy-2">复制</button>
+            </div>
+            <div class="ai-use-row" data-u32-name="ai-use-row-3">
+              <code class="ai-use-cmd" data-u32-name="ai-use-cmd-3">读取 http://127.0.0.1:19527/llms.txt ，然后用 CORS 代理抓取网页内容</code>
+              <button type="button" class="btn btn-ghost ai-use-copy" data-u32-name="ai-use-copy-3">复制</button>
+            </div>
+            <div class="ai-use-row" data-u32-name="ai-use-row-4">
+              <code class="ai-use-cmd" data-u32-name="ai-use-cmd-4">读取 http://127.0.0.1:19527/llms.txt ，然后用文件写入 API 创建文件</code>
+              <button type="button" class="btn btn-ghost ai-use-copy" data-u32-name="ai-use-copy-4">复制</button>
+            </div>
+            <div class="ai-use-row" data-u32-name="ai-use-row-5">
+              <code class="ai-use-cmd" data-u32-name="ai-use-cmd-5">读取 http://127.0.0.1:19527/llms.txt ，然后用文件选择器让我选择本地文件或文件夹</code>
+              <button type="button" class="btn btn-ghost ai-use-copy" data-u32-name="ai-use-copy-5">复制</button>
+            </div>
+            <div class="ai-use-row" data-u32-name="ai-use-row-6">
+              <code class="ai-use-cmd" data-u32-name="ai-use-cmd-6">读取 http://127.0.0.1:19527/llms.txt ，然后告诉我这个服务能做什么</code>
+              <button type="button" class="btn btn-ghost ai-use-copy" data-u32-name="ai-use-copy-6">复制</button>
+            </div>
+          </div>
+        </div>
         <div class="ai-install-row" data-u32-name="ai-install-row">
           <span class="ai-install-label" data-u32-name="ai-install-label">让 AI 安装：</span>
           <code class="ai-install-cmd" id="ai-install-cmd" data-u32-name="ai-install-cmd">读取 https://u32-local-server.u32.cn/llms.txt ，帮我安装并启动 u32-local-server</code>
@@ -197,6 +229,27 @@ u32-ls open .</pre>
    提示词只负责把 AI 指到那个 URL。 */
 var AI_INSTALL_PROMPT = '读取 https://u32-local-server.u32.cn/llms.txt ，帮我安装并启动 u32-local-server';
 
+/* 通用复制：clipboard API 优先，execCommand 选中文本兜底（fallbackEl 为兜底时选中的元素） */
+function bindCopyButton(btn, getText, fallbackEl){
+  if (!btn) return;
+  btn.addEventListener('click', function(){
+    var text = getText();
+    function done(ok){
+      btn.textContent = ok ? '已复制 ✓' : '复制';
+      setTimeout(function(){ btn.textContent = '复制'; }, 2000);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ done(true); }, function(){ done(false); });
+    } else {
+      var sel = window.getSelection(); var range = document.createRange();
+      var target = fallbackEl || btn.previousElementSibling;
+      range.selectNodeContents(target);
+      sel.removeAllRanges(); sel.addRange(range);
+      var ok = document.execCommand('copy'); sel.removeAllRanges(); done(ok);
+    }
+  });
+}
+
 (function(){
   var cmdEl = document.getElementById('ai-install-cmd');
   var copyBtn = document.getElementById('ai-install-copy');
@@ -205,18 +258,13 @@ var AI_INSTALL_PROMPT = '读取 https://u32-local-server.u32.cn/llms.txt ，帮�
   if (viewBtn) viewBtn.addEventListener('click', function(){
     window.open('./llms.txt', '_blank', 'noopener');
   });
-  copyBtn.addEventListener('click', function(){
-    function done(ok){
-      copyBtn.textContent = ok ? '已复制 ✓' : '复制';
-      setTimeout(function(){ copyBtn.textContent = '复制'; }, 2000);
-    }
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(AI_INSTALL_PROMPT).then(function(){ done(true); }, function(){ done(false); });
-    } else {
-      var sel = window.getSelection(); var range = document.createRange();
-      range.selectNodeContents(cmdEl); sel.removeAllRanges(); sel.addRange(range);
-      var ok = document.execCommand('copy'); sel.removeAllRanges(); done(ok);
-    }
+  bindCopyButton(copyBtn, function(){ return AI_INSTALL_PROMPT; }, cmdEl);
+
+  /* 「让 AI 使用」6 条提示词 */
+  var useCopyBtns = document.querySelectorAll('.ai-use-copy');
+  Array.prototype.forEach.call(useCopyBtns, function(btn, i){
+    var cmd = document.querySelector('[data-u32-name="ai-use-cmd-' + (i + 1) + '"]');
+    bindCopyButton(btn, function(){ return cmd ? cmd.textContent : ''; });
   });
 })();
 

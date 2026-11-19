@@ -54,7 +54,7 @@ u32-local-server 是一个跑在本机（127.0.0.1）的 HTTP 服务，为两类
 - [文件写入 API /api/fs](/docs/fs-api.md) - REST 写入/追加/建目录/删除/移动/复制/查询（content 为 base64；按路径 只读/读写 权限）
 - [浏览器桥 /bridge](/docs/bridge.md) - AI 与浏览器页面间长轮询消息桥：页面注册（appId/appInstanceId/help）→ AI 下发指令同步等回包；多实例时用 ID短码（appInstanceId 前 2 字符，不区分大小写）指定操作对象，发指令仍用完整 appInstanceId；页面大产物（截图/导出）HTTP 直传落盘，AI 读上传回包返回的本地文件 path
 - [桥连接机制](/docs/bridge-connection-lifecycle.md) - 浏览器桥完整连接生命周期：身份模型设计、25s 心跳、指令收发时序、秒级判死 + 60s 惰性兜底、故障模式一览；排查桥不在线问题时先读这篇
-- [文件选择器 /picker](/docs/picker.md) - Win10 对话框风格网页选择器，iframe/弹窗嵌入，postMessage 回传协议 + 只读 JSON API；演示页 /picker-demo 可在线试各参数与回传结果
+- [文件选择器 /picker](/docs/picker.md) - Win10 对话框风格网页选择器，iframe/弹窗嵌入，postMessage 回传协议 + 只读 JSON API；引导页 /picker-guide 展示三种模式接入脚本并可在线试用；演示页 /picker-demo 可在线试各参数与回传结果
 
 管理与观察：
 

@@ -7,6 +7,7 @@ const bridge = require('./bridge')
 const artifacts = require('./artifacts')
 const sysinfo = require('./sysinfo')
 const statusPage = require('./status-page')
+const pickerGuide = require('./picker-guide')
 const summary = require('./summary')
 const serviceStatus = require('./service-status')
 
@@ -149,6 +150,10 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
       logger.debug(`[INFO] Routing to status page handler\n`)
       return statusPage.serve(req, res, config, server)
     }
+    if (url.pathname === '/picker-guide') {
+      logger.debug(`[INFO] Routing to picker guide page handler\n`)
+      return pickerGuide.serve(req, res, config)
+    }
     if (url.pathname === '/picker-demo') {
       logger.debug(`[INFO] Routing to picker demo page handler\n`)
       return pickerDemoServe(req, res)
@@ -211,11 +216,54 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
       logger.debug(`[INFO] Routing to proxy handler\n`)
       return proxy(req, res)
     }
-    if (url.pathname.startsWith('/docs/')) {
-      // AI 功能文档（docs/readme/*.md）：/docs/<name>.md 映射到包内 docs/readme，
+    if (url.pathname === '/docs' || url.pathname === '/docs/') {
+      // 规范化到文档站入口页，离线环境下也能看到完整排版文档
+      return redirect(res, './docs/index.html')
+    }
+    if (url.pathname === '/docs/index.html' || url.pathname === '/docs/reader.html') {
+      // 文档站页面（白名单固定两个 HTML，杜绝路径穿越）；
+      // docs/ 同时是 GitHub Pages 站点源，本地伺服同一批文件，离线可用
+      const pagePath = path.join(__dirname, '..', 'docs', path.basename(url.pathname))
+      if (!fs.existsSync(pagePath) || !fs.statSync(pagePath).isFile()) {
+        return sendPlain(res, 404, '404 Not Found')
+      }
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
+      return fs.createReadStream(pagePath).pipe(res)
+    }
+    if (url.pathname.startsWith('/docs/assets/')) {
+      // 文档站静态资源（css/js/字体/marked vendor）
+      const assetsDir = path.join(__dirname, '..', 'docs', 'assets')
+      const reqPath = path.resolve(assetsDir, url.pathname.slice('/docs/assets/'.length))
+      if (!reqPath.startsWith(assetsDir + path.sep) || !fs.existsSync(reqPath) || !fs.statSync(reqPath).isFile()) {
+        return sendPlain(res, 404, '404 Not Found')
+      }
+      const ext = path.extname(reqPath).toLowerCase()
+      const contentType = {
+        '.css': 'text/css',
+        '.js': 'application/javascript',
+        '.md': 'text/markdown',
+        '.svg': 'image/svg+xml',
+        '.woff2': 'font/woff2',
+        '.woff': 'font/woff',
+        '.ttf': 'font/ttf',
+      }[ext] || 'application/octet-stream'
+      res.writeHead(200, { 'Content-Type': contentType })
+      return fs.createReadStream(reqPath).pipe(res)
+    }
+    if (url.pathname.startsWith('/docs/readme/')) {
+      // 阅读页 reader.html 的 fetch 目标（Pages 站点同路径）：功能文档 docs/readme/*.md
       // 该目录同时是 GitHub Pages 站点的文档源，改一处两边生效，供 llms.txt 引用
       const docPath = path.join(__dirname, '..', 'docs', 'readme', path.basename(url.pathname))
       if (!docPath.endsWith('.md') || !fs.existsSync(docPath) || !fs.statSync(docPath).isFile()) {
+        return sendPlain(res, 404, '404 Not Found')
+      }
+      res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' })
+      return fs.createReadStream(docPath).pipe(res)
+    }
+    if (url.pathname.startsWith('/docs/') && url.pathname.endsWith('.md')) {
+      // 兼容旧直链：/docs/<name>.md 映射到包内 docs/readme
+      const docPath = path.join(__dirname, '..', 'docs', 'readme', path.basename(url.pathname))
+      if (!fs.existsSync(docPath) || !fs.statSync(docPath).isFile()) {
         return sendPlain(res, 404, '404 Not Found')
       }
       res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' })

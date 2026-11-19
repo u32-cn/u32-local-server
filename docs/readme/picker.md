@@ -2,6 +2,10 @@
 
 Windows 10 文件对话框风格的网页文件/文件夹选择器，可嵌入宿主页面（iframe 或弹窗）。
 
+## 在线引导页
+
+打开 `http://127.0.0.1:{{PORT}}/picker-guide`：展示三种模式的最小接入配置脚本（弹窗打开 + postMessage 监听），每张卡片配「试用」按钮，点后弹窗打开对应模式的 /picker，选中结果以回传 JSON 直接显示在卡片下方，适合首次接入前快速理解协议。
+
 ## 在线演示
 
 打开 `http://127.0.0.1:{{PORT}}/picker-demo`：可切换三种模式与各 URL 参数（mode/type/allowEmpty/chrome）、iframe/弹窗两种嵌入方式，实时展示拼出的 picker URL 与 postMessage 回传 JSON，页面底部附宿主集成最小代码。

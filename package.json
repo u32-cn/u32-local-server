@@ -30,6 +30,9 @@
     "public",
     "docs/readme",
     "docs/llms.txt",
+    "docs/index.html",
+    "docs/reader.html",
+    "docs/assets",
     "package.json",
     "README.md",
     "CHANGELOG.md"
