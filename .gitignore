@@ -1,0 +1,7 @@
+# register 服务生成的本机启动脚本（含本机绝对路径，不入库）
+u32-local-server-*.vbs
+# ZCode 工作区配置
+.zcode/
+# 项目内部工作目录（需求/计划等，不入库）
+.vtxf/
+.workbuddy/

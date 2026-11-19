@@ -1,0 +1,35 @@
+{
+  "name": "u32-local-server",
+  "version": "1.6.0",
+  "description": "Local HTTP file server and proxy",
+  "main": "src/index.js",
+  "bin": {
+    "u32-local-server": "src/index.js",
+    "u32-ls": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js start",
+    "dev": "node --watch src/index.js start"
+  },
+  "keywords": [
+    "local-server",
+    "file-server",
+    "proxy",
+    "cors"
+  ],
+  "author": "vtxf",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org"
+  },
+  "files": [
+    "src",
+    "public",
+    "package.json",
+    "README.md",
+    "CHANGELOG.md"
+  ]
+}
