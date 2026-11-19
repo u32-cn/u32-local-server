@@ -22,6 +22,13 @@ All notable changes to this project will be documented in this file.
 - 🔧 `/proxy/` 与 `/picker-demo` 去掉 FontAwesome 按钮图标与 `space-grotesk.css` 引用，表单 / 按钮改用 base.css 基准
 
 ### Docs
+- 📝 文档体系深度整理（Diátaxis 分类：教程/指南/参考/解释，每条知识只留一个权威源）：
+  - 新增 `docs/readme/installation.md`（安装唯一权威文档：前置、npm 落点检查、自检、误装清理）与 `docs/readme/getting-started.md`（启动、≥5 分钟验证标准、AI 托管会话回收陷阱与计划任务方案、首次 403 解除、30 秒上手）；原 llms.txt 内两处重复的安装/回收警示块与 PowerShell 脚本副本迁出合并
+  - `docs/llms.txt` 重写为「产品简介 → 核心特色 → 安装摘要 → 启动摘要 → 功能文档索引（12 篇全，新增收录 bridge-connection-lifecycle，补 installation/getting-started）→ 全局约定」，正文细节全部改为链接到对应文档
+  - `docs/readme/bridge.md` 重构：「接入须知」（at-most-once、超时、内存状态等语义）前置为第一节的表格，身份模型定为权威定义处；机制细节改为指向 lifecycle 文档
+  - `docs/readme/bridge-connection-lifecycle.md` 重定位为纯机制解释文档：笔记体头部（日期/实现位置）改为标准文档导语，身份模型表与语义限制改为引用 bridge.md，不再两处维护
+  - `docs/readme/cli.md`：补 `clear-artifacts` 命令（此前只在 bridge.md 提及、命令表缺失）、桥临时产物路径；安装段改指向 installation.md；删「技术特性」节（产品级卖点并入 llms.txt 核心特色）
+  - `docs/readme/home.md`：删「视觉基准」节（内部 CSS 设计笔记，对功能使用者无价值）
 - 📝 `docs/` 重构为 GitHub Pages 站点（`.nojekyll` + `index.html` 主页 + `assets/` + `reader.html` 站内渲染），经 EdgeOne 回源分发到 `u32-local-server.u32.cn`
 - 📝 文档合并为单一源：`public/docs/*.md` 与 `docs/bridge-connection-lifecycle.md` 移入 `docs/readme/`，`src/router.js` 的 `/docs/<name>.md` 改读该目录，npm `files` 白名单增列 `docs/readme`；改一处同时作用于站点与运行时
 - 📝 README 新增「两个核心用途」：本地文件服务（对比 File System Access API 的授权模型）与 AI 桥接服务，并说明两者都需 Web 端按协议改造

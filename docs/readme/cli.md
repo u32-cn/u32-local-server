@@ -1,12 +1,6 @@
 # 命令行（u32-ls / u32-local-server）
 
-npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。
-
-```bash
-npm i -g u32-local-server    # 安装
-```
-
-> **注意确认 npm 属于你自己的环境**：装前先跑 `npm config get prefix`。若落点是 AI 工具（WorkBuddy / Cursor 等）自带的 node 运行时（形如 `...\.workbuddy\binaries\node\versions\...`），那里装的命令只有该工具会话能用，你自己的终端会 `command not found`；此时改用系统 node 的 npm：`"C:\Program Files\nodejs\npm.cmd" i -g u32-local-server`。
+npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。安装步骤与 npm 落点检查见 [installation.md](installation.md)。
 
 ## 命令一览
 
@@ -22,6 +16,7 @@ npm i -g u32-local-server    # 安装
 | `u32-ls copy-url <path>` | 复制 URL 到剪贴板 |
 | `u32-ls register` | 注册开机自启（Windows 另加右键菜单：在浏览器中打开/复制 URL） |
 | `u32-ls unregister` | 取消注册 |
+| `u32-ls clear-artifacts` | 清空浏览器桥临时产物目录（等效 `DELETE /bridge/api/artifacts`） |
 | `u32-ls version` / `-v` | 版本号 |
 | `u32-ls help` | 帮助（中英文对照） |
 
@@ -30,9 +25,4 @@ npm i -g u32-local-server    # 安装
 - 配置：`~/.u32-local-server/config/main.json`
 - 日志：`~/.u32-local-server/logs/server.log`
 - PID：`~/.u32-local-server/server.pid`
-
-## 技术特性
-
-- 纯 Node.js 零依赖（Node ≥ 18）
-- 跨平台：Windows（taskkill/VBS/注册表）与 Linux（信号/systemd）双支持
-- 反向代理友好：页面全相对链接，可直接挂 Nginx 子路径（`proxy_pass http://127.0.0.1:19527/;`）
+- 桥临时产物：`~/.u32-local-server/tmp/bridge-artifacts/`（见 [bridge.md](bridge.md)）

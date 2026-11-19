@@ -2,11 +2,31 @@
 
 AI 与浏览器页面之间的透明转发层。页面注册后循环**长轮询**蹲守指令；AI 通过 HTTP 下发消息并**同步等待页面回包**。服务器只透传，业务语义完全由页面自定义。
 
-## 身份模型
+## 接入须知：语义与限制（先读这个）
 
-- `appId`：一种 App 一个（页面侧必传）
-- `appInstanceId`：一个页面实例一个，**页面侧生成、必传**（单次页面加载内固定、内存持有：断线重连沿用同一 id，刷新=新页面=新实例）；同一页面开多个标签页即多个实例
-- `help`：必传字符串，声明本 App 功能/指令/协议——AI 读完 help 即知道怎么用这个 App
+接入前必须知道的语义，设计协议时据此取舍：
+
+| 语义 | 说明 | 接入方对策 |
+|---|---|---|
+| 消息**至多送达一次** | poll 响应交付后消息即出队，页面收到后崩溃则消息丢失 | AI 靠 504 感知失败，自行决定重试 |
+| 无重入队 | 超时/交付后都不重入队（避免重复执行风险） | 指令设计为**幂等** |
+| /send 超时（默认 30s → 504） | 超时后消息从队列移除，页面不会收到过期指令 | 页面耗时操作可在业务层做异步确认 |
+| 全部状态在内存 | 服务器重启名册即清空 | 页面客户端自动重注册，无需人工干预 |
+| 桥消息 1MB body 上限 | 大数据不能塞 JSON 回包 | 走「临时产物」HTTP 直传（见下文） |
+
+连接如何维持、页面死亡如何判定、完整时序——机制解释见 [桥连接机制](bridge-connection-lifecycle.md)。
+
+## 身份模型（权威定义）
+
+| 标识 | 粒度 | 谁生成 | 生命周期 |
+|---|---|---|---|
+| `appId` | 一种 App 一个 | 页面侧定（代码常量） | 与 App 代码同生命周期 |
+| `appInstanceId` | 一个页面实例一个 | **页面侧生成、必传** | **单次页面加载内固定**：加载时生成（UUID，内存持有），断线重连沿用同一 id；刷新=新页面=新实例，多开标签页各自独立 id |
+| 消息 `id` | 一条指令一个 | 服务器生成 | 指令与回包的配对凭证 |
+
+**多实例指代**：同一页面开多个标签页即多个实例。用户给短码时按「appInstanceId 前 2 字符」（不区分大小写）匹配：唯一命中才发指令；命中 0 条或多条时列出全部候选让用户重选，**禁止猜**。发指令始终用完整 appInstanceId。
+
+`appInstanceId` 由页面生成、服务器不代生成的设计原因（防幽灵实例）与下线判定机制，见 [桥连接机制](bridge-connection-lifecycle.md) 第 2、6 节。
 
 ## AI 侧用法（三步）
 
@@ -20,10 +40,6 @@ curl $BASE/bridge/api/apps
 # ② 在线实例列表，拿 appInstanceId
 curl $BASE/bridge/api/pages
 # [ { "appInstanceId": "0f8a…", "appId": "my-tool", "url": "…", "title": "…", "help": "…", "connectedAt": …, "lastSeen": … } ]
-#
-# ID短码：多实例时（同一页面开多个标签页）用「appInstanceId 前 2 字符」（不区分大小写）指代实例，
-# 如 "0f8a…" 的短码是 "0f"。用户给短码时按前 2 字符匹配：唯一命中才发指令；
-# 命中 0 条或多条时列出全部候选让用户重选，禁止猜。发指令始终用完整 appInstanceId。
 
 # ③ 发指令，挂起直至页面回包（timeoutMs 默认 30000，超时 → 504）
 curl -X POST $BASE/bridge/api/send/0f8a… -H "Content-Type: application/json" \
@@ -53,6 +69,8 @@ curl -X POST $BASE/bridge/api/send/0f8a… -H "Content-Type: application/json" \
 </script>
 ```
 
+`help` 是必传的协议自述：AI 经 `GET /bridge/api/apps` 读 help 即学会该 App 的指令用法。自研客户端（不走 bridge-client.js）按相同协议实现即可，机制细节见 [桥连接机制](bridge-connection-lifecycle.md)。
+
 ## HTTP 接口一览
 
 | 方法 | 路径 | 说明 |
@@ -70,9 +88,11 @@ curl -X POST $BASE/bridge/api/send/0f8a… -H "Content-Type: application/json" \
 | POST | `/bridge/api/artifacts/open` | Windows 用资源管理器打开产物目录（其他平台返回 unsupported） |
 | GET | `/bridge` | 浏览器桥状态页（只读观察页，每 3s 自动刷新：App/实例/在线状态/积压消息） |
 
+错误码：实例不存在/已下线 → 404；回包超时 → 504；参数非法 → 400。
+
 ## 临时产物（bridge-artifacts）
 
-用途：桥消息（JSON 回包）有 1MB body 上限，页面的大产物（截图/导出数据）走 HTTP 直传落盘，AI 拿本地文件路径直接读取，免 base64 塞 JSON。
+用途：绕开桥消息 1MB body 上限——页面的大产物（截图/导出数据）走 HTTP 直传落盘，AI 拿本地文件路径直接读取，免 base64 塞 JSON。
 
 ```
 页面截好图 → POST /bridge/api/artifact/<实例id>（原始字节）
@@ -82,13 +102,5 @@ curl -X POST $BASE/bridge/api/send/0f8a… -H "Content-Type: application/json" \
 
 - 存储位置：`~/.u32-local-server/tmp/bridge-artifacts/<YYYY>/<MM>/<YYYYMMDD-HHMMSS-<主题名>.<ext>>`，`tmp/` 整目录随时可删
 - 生命周期：启动清空（会话级数据）+ 7 天 TTL 过期 + 总量 1GB LRU 驱逐 + 单个 64MB 上限（超限 413）；均可配 `bridge.artifact.{ttlMs,maxBytes,maxTotalBytes}`
-- 首页「临时产物」卡片可看统计/清空/打开目录；CLI `npx u32-local-server clear-artifacts` 等效清空
+- 首页「临时产物」卡片可看统计/清空/打开目录；CLI `u32-ls clear-artifacts` 等效清空
 - 只有在册实例能上传；手工放进目录的文件统计可见、清空会删，但不会被 AI 消费
-
-## 语义与限制
-
-- 错误码：实例不存在/已下线 → 404；回包超时 → 504；参数非法 → 400
-- 消息**至多送达一次**：页面崩溃丢消息，AI 靠 504 感知自行重试；不重入队（避免重复执行）
-- /send 超时后消息从队列移除（504 后页面不会收到过期指令）
-- 惰性下线判定：实例 60s 无 poll 且无挂起 → 移出名册，此后 /send 404；另有秒级判死——挂起的 poll 连接被对端断开（页面关闭/崩溃/断网）即刻移出名册
-- 全部状态在内存，服务器重启即清空（页面客户端会自动重注册）
