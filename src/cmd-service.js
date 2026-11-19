@@ -4,6 +4,7 @@ const os = require('os')
 const { execSync } = require('child_process')
 
 const PROJECT_DIR = path.resolve(__dirname, '..')
+const RUNTIME_DIR = path.join(PROJECT_DIR, 'runtime') // register 运行时生成物统一放 runtime/，不污染仓库根
 const VBS_NAME = 'u32-local-server-hidden.vbs'
 const OPEN_VBS_NAME = 'u32-local-server-open.vbs'
 const COPY_URL_VBS_NAME = 'u32-local-server-copy-url.vbs'
@@ -36,7 +37,7 @@ function warnIfNpxCache() {
 }
 
 function getVbsPath() {
-  return path.join(PROJECT_DIR, VBS_NAME)
+  return path.join(RUNTIME_DIR, VBS_NAME)
 }
 
 function getVbsContent() {
@@ -50,7 +51,7 @@ ws.Run nodeCmd, 0, False
 }
 
 function getOpenVbsPath() {
-  return path.join(PROJECT_DIR, OPEN_VBS_NAME)
+  return path.join(RUNTIME_DIR, OPEN_VBS_NAME)
 }
 
 function getOpenVbsContent() {
@@ -72,7 +73,7 @@ End If
 }
 
 function getCopyUrlVbsPath() {
-  return path.join(PROJECT_DIR, COPY_URL_VBS_NAME)
+  return path.join(RUNTIME_DIR, COPY_URL_VBS_NAME)
 }
 
 function getCopyUrlVbsContent() {
@@ -97,6 +98,7 @@ End If
 function winRegister() {
   process.stdout.write('[CMD-SERVICE] Starting Windows service registration...\n')
   warnIfNpxCache()
+  fs.mkdirSync(RUNTIME_DIR, { recursive: true })
   const vbsPath = getVbsPath()
   process.stdout.write(`[CMD-SERVICE] Creating VBS script: ${vbsPath}\n`)
   // wscript 按 ANSI（GBK）读取 .vbs，UTF-8 写入的中文路径会乱码导致自启失效；
