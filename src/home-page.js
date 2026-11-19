@@ -40,13 +40,19 @@ const ENTRIES = [
   },
 ]
 
+// 提示词写法原则（实测教训：裸写「先读 llms.txt，然后用浏览器桥控制页面」，AI 连 llms.txt
+// 在哪都不知道，翻遍桌面/下载才反问用户，全程没沾服务边）：
+//   1. 给完整 URL（http://127.0.0.1:PORT/llms.txt），不留「llms.txt」三个字让 AI 猜
+//   2. 目标动作可验证：要么服务端有真实回包可汇报，要么产出明确结果
+//   3. 不承诺前置条件不满足的事（桥没页面接入、允许列表为空时，「控制页面/读文件」必然落空）
+// PORT 占位符由 renderPage 按实际端口替换
 const AI_PROMPTS = [
-  '先读 llms.txt，然后用浏览器桥控制页面',
-  '先读 llms.txt，然后读取本地文件内容',
-  '先读 llms.txt，然后用 CORS 代理抓取网页内容',
-  '先读 llms.txt，然后用文件写入 API 创建文件',
-  '先读 llms.txt，然后用文件选择器让我选择本地文件或文件夹',
-  '先读 llms.txt，然后告诉我这个服务能做什么',
+  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明探测本机 u32-local-server：服务是否在运行、允许列表有几条、桥有几个在线实例，汇总告诉我',
+  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明从 /file/ 抓取允许列表内一个文件的内容展示给我；若允许列表为空，告诉我去 /config 加哪个目录',
+  '读取 http://127.0.0.1:PORT/llms.txt ，查询 /bridge 的在线页面实例并告诉我：哪些页面现在就能接 AI 指令，没有实例时网页要怎样接入桥',
+  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明用 /api/fs 在允许列表内的目录创建一个测试文件，写完再读回来验证给我看',
+  '读取 http://127.0.0.1:PORT/llms.txt ，按其中 /picker 文档给出一段可直接粘贴到我网页里的接入代码，让网页能弹出文件选择框',
+  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明通过 /proxy/ 抓取 example.com 的页面标题，验证 CORS 代理可用',
 ]
 
 const COMMANDS = [
@@ -71,12 +77,13 @@ function renderEntries() {
   )).join('')
 }
 
-function renderPrompts() {
-  return AI_PROMPTS.map((p, i) => (
-    '<div class="pr"><span class="i">' + (i + 1) + '</span>' +
+function renderPrompts(port) {
+  return AI_PROMPTS.map((raw, i) => {
+    const p = raw.replace(/PORT/g, String(port))
+    return '<div class="pr"><span class="i">' + (i + 1) + '</span>' +
     '<span class="t">' + p + '</span>' +
     '<button type="button" data-copy="' + p.replace(/"/g, '&quot;') + '">复制</button></div>'
-  )).join('')
+  }).join('')
 }
 
 function renderCommands() {
@@ -268,7 +275,7 @@ function renderPage(config, snap) {
         <button type="button" data-view-llms>查看</button>
         <button type="button" data-copy-llms>复制地址</button>
       </div>
-      ${renderPrompts()}
+      ${renderPrompts(config.port)}
     </div>
   </details>
 
