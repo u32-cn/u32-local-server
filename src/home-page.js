@@ -144,6 +144,20 @@ function renderPage(config, snap) {
   .copy.done { background: var(--green-soft); color: var(--green); opacity: 1; }
 
   .ops { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  /* 顶部 AI 提示词区： alerts 之后、入口之前，视觉强调 */
+  .ai-top {
+    margin-top: 14px; padding: 16px 18px;
+    background: var(--card); border: 2px solid var(--blue); border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(37, 99, 235, .10);
+  }
+  .ai-top-head { display: flex; align-items: center; gap: 9px; margin-bottom: 10px; font-size: 13.5px; }
+  .ai-top-head svg { width: 17px; height: 17px; stroke: var(--blue); fill: none; stroke-width: 1.7; stroke-linejoin: round; flex-shrink: 0; }
+  .ai-top-head b { font-weight: 500; color: var(--blue); }
+  .ai-top-head span { font-size: 12px; color: var(--dim); }
+  .ai-top-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  .ai-top-list .pr { padding: 7px 0; border-bottom: 1px solid #F2F2F5; }
+  .ai-top-list .pr:nth-last-child(-n+2) { border-bottom: none; }
   .op { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
   .op-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13.5px; font-weight: 500; }
   .op-head svg { width: 16px; height: 16px; stroke: var(--dim); fill: none; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
@@ -181,6 +195,8 @@ function renderPage(config, snap) {
     .metrics { grid-template-columns: repeat(2, 1fr); }
     .tiles { grid-template-columns: 1fr; }
     .ops { grid-template-columns: 1fr; }
+    .ai-top-list { grid-template-columns: 1fr; }
+    .ai-top-list .pr:nth-last-child(2) { border-bottom: 1px solid #F2F2F5; }
     .copy { opacity: 1; }
   }
 </style>
@@ -233,6 +249,17 @@ function renderPage(config, snap) {
     <a class="act" href="#" id="alert-auto-act">立即注册</a>
   </div>
 
+  <div class="ai-top" data-u32-name="ai-top">
+    <div class="ai-top-head">
+      <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>
+      <b>接入 AI</b>
+      <span>把下面的指令发给任意能发 HTTP 请求的 AI 工具（WorkBuddy / Cursor 等），AI 读 llms.txt 后即可操作本服务</span>
+    </div>
+    <div class="ai-top-list">
+      ${renderPrompts(config.port)}
+    </div>
+  </div>
+
   <div class="h">入口</div>
   <div class="tiles">
     ${renderEntries()}
@@ -263,21 +290,6 @@ function renderPage(config, snap) {
       </div>
     </div>
   </div>
-
-  <details>
-    <summary>
-      <svg class="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>接入 AI
-      <span class="n">${AI_PROMPTS.length} 条指令</span>
-    </summary>
-    <div class="d-body">
-      <div class="lead">
-        <span>http://localhost:${config.port}/llms.txt</span>
-        <button type="button" data-view-llms>查看</button>
-        <button type="button" data-copy-llms>复制地址</button>
-      </div>
-      ${renderPrompts(config.port)}
-    </div>
-  </details>
 
   <details>
     <summary>
