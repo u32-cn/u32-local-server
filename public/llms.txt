@@ -95,3 +95,4 @@ curl $BASE/proxy/https://api.example.com/data
 - 仅监听 127.0.0.1，不暴露公网
 - 路径统一 POSIX 风格：`~/x`、`/C:/x`（Windows 盘符）、`/etc/x`（Linux）
 - Host 校验（防 DNS rebinding）+ 写接口 Origin 同源校验（防 CSRF）
+- 文档站（同一批文档的网页版）：<https://u32-local-server.u32.cn/>

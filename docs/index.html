@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>u32-local-server — 让 Web 应用安全地使用本机文件</title>
+<meta name="description" content="本地 HTTP 文件服务 + AI 桥接。目录授权一次，Web 应用直接读写本机文件；页面接入桥后，AI 工具可直接下发指令。纯 Node.js，零依赖，仅监听 127.0.0.1。">
+<link rel="stylesheet" href="./assets/style.css">
+</head>
+<body>
+<header class="nav" data-u32-name="nav">
+  <div class="nav-inner" data-u32-name="nav-inner">
+    <a class="brand" href="./" data-u32-name="brand">
+      <span class="brand-mark" data-u32-name="brand-mark">u32</span>
+      <span class="brand-name" data-u32-name="brand-name">u32-local-server</span>
+    </a>
+    <nav class="nav-links" data-u32-name="nav-links">
+      <a href="#use" data-u32-name="nav-use">用途</a>
+      <a href="#compare" data-u32-name="nav-compare">对比</a>
+      <a href="#docs" data-u32-name="nav-docs">文档</a>
+      <a href="#start" data-u32-name="nav-start">安装</a>
+      <a class="gh" href="https://github.com/u32-cn/u32-local-server" data-u32-name="nav-github">GitHub</a>
+      <span class="ver" data-u32-name="nav-version">v1.6.0</span>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap" data-u32-name="main">
+  <section class="hero" data-u32-name="hero">
+    <p class="eyebrow" data-u32-name="hero-eyebrow">本地 HTTP 服务 · 仅监听 127.0.0.1</p>
+    <h1 data-u32-name="hero-title">让 Web 应用安全地使用本机文件，<br>让 AI 直接操控你的页面</h1>
+    <p class="lede" data-u32-name="hero-lede">
+      目录只授权一次，之后页面通过 HTTP 直接读写，不再弹窗；页面接入桥之后，AI 工具可以给它下发指令、同步拿到结构化结果。
+      两项能力都需要 Web 端按协议做小幅改造。
+    </p>
+    <div class="cta-row" data-u32-name="hero-cta">
+      <a class="btn btn-primary" href="#start" data-u32-name="cta-start">快速开始</a>
+      <a class="btn btn-ghost" href="#docs" data-u32-name="cta-docs">浏览文档</a>
+    </div>
+    <div class="meta-row" data-u32-name="hero-meta">
+      <span class="pill" data-u32-name="meta-node">NODE ≥ 18</span>
+      <span class="pill" data-u32-name="meta-deps">ZERO DEPS</span>
+      <span class="pill" data-u32-name="meta-port">127.0.0.1:19527</span>
+      <span class="pill" data-u32-name="meta-license">MIT</span>
+    </div>
+  </section>
+
+  <section class="sec" id="use" data-u32-name="sec-use">
+    <div class="sec-head" data-u32-name="sec-use-head">
+      <span class="sec-num" data-u32-name="sec-use-num">01</span>
+      <h2 class="sec-title" data-u32-name="sec-use-title">两个核心用途</h2>
+      <span class="sec-note" data-u32-name="sec-use-note">都要改造 Web 端</span>
+    </div>
+    <div class="use" data-u32-name="use-grid">
+      <div class="use-col" data-u32-name="use-file">
+        <div class="use-tag" data-u32-name="use-file-tag">本地文件服务</div>
+        <h3 class="use-h" data-u32-name="use-file-h">授权一次，之后页面直接用</h3>
+        <p class="use-p" data-u32-name="use-file-p">
+          浏览器自带的 File System Access API 也能读写本地文件，但句柄权限不能跨会话保持：刷新、换标签、隔天再来都要用户重新确认，普通网页无法给一个应用长期备好一组目录。
+        </p>
+        <ul class="use-list" data-u32-name="use-file-list">
+          <li data-u32-name="use-file-li1"><b>允许目录写进配置</b>，逐条标只读或读写，<code>deny</code> 优先</li>
+          <li data-u32-name="use-file-li2">页面走 <code>/file/</code> 读、<code>/api/fs</code> 写，不再弹授权框</li>
+          <li data-u32-name="use-file-li3"><b>自带文件选择器</b> <code>/picker</code>，打开 / 选目录 / 另存为，嵌 iframe 即用</li>
+        </ul>
+      </div>
+      <div class="use-col" data-u32-name="use-bridge">
+        <div class="use-tag" data-u32-name="use-bridge-tag">AI 桥接服务</div>
+        <h3 class="use-h" data-u32-name="use-bridge-h">AI 发指令，页面回包</h3>
+        <p class="use-p" data-u32-name="use-bridge-p">
+          页面接入 <code>/bridge</code> 后注册，并声明一份 <code>help</code>：这个页面接什么指令、返回什么。AI 通过 <code>/bridge/api/apps</code> 发现它，POST 一条消息，同步等回包。
+        </p>
+        <ul class="use-list" data-u32-name="use-bridge-list">
+          <li data-u32-name="use-bridge-li1">AI 不用理解界面结构，<b>不截图、不猜按钮、不模拟点击</b></li>
+          <li data-u32-name="use-bridge-li2">服务器只做透明转发，业务语义由页面自己定义</li>
+          <li data-u32-name="use-bridge-li3">一条指令至多送达一次，超时 504 由 AI 侧重试</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="compare" data-u32-name="sec-compare">
+    <div class="sec-head" data-u32-name="sec-compare-head">
+      <span class="sec-num" data-u32-name="sec-compare-num">02</span>
+      <h2 class="sec-title" data-u32-name="sec-compare-title">和浏览器自带的文件能力比</h2>
+      <span class="sec-note" data-u32-name="sec-compare-note">差在授权模型</span>
+    </div>
+    <div class="table-wrap" data-u32-name="compare-wrap">
+      <table data-u32-name="compare-table">
+        <thead data-u32-name="compare-thead">
+          <tr data-u32-name="compare-tr-head">
+            <th data-u32-name="th-item"></th>
+            <th data-u32-name="th-fs">File System Access API</th>
+            <th data-u32-name="th-u32">u32-local-server</th>
+          </tr>
+        </thead>
+        <tbody data-u32-name="compare-tbody">
+          <tr data-u32-name="tr1"><th data-u32-name="tr1-k">授权</th><td class="no" data-u32-name="tr1-a">每次会话都要用户重新确认</td><td class="yes" data-u32-name="tr1-b"><b>配置一次，长期有效</b></td></tr>
+          <tr data-u32-name="tr2"><th data-u32-name="tr2-k">多目录</th><td class="no" data-u32-name="tr2-a">逐个授权，无法预置</td><td class="yes" data-u32-name="tr2-b">允许列表可写多条，逐条标只读 / 读写</td></tr>
+          <tr data-u32-name="tr3"><th data-u32-name="tr3-k">拒绝规则</th><td class="no" data-u32-name="tr3-a">无</td><td class="yes" data-u32-name="tr3-b"><code>deny</code> 优先于 <code>allow</code></td></tr>
+          <tr data-u32-name="tr4"><th data-u32-name="tr4-k">文件选择器</th><td class="no" data-u32-name="tr4-a">自己实现</td><td class="yes" data-u32-name="tr4-b"><code>/picker</code> 直接嵌入</td></tr>
+          <tr data-u32-name="tr5"><th data-u32-name="tr5-k">AI 调用</th><td class="no" data-u32-name="tr5-a">不可，权限绑在用户手势上</td><td class="yes" data-u32-name="tr5-b">可通过 <code>/bridge</code> 下发指令</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" data-u32-name="sec-features">
+    <div class="sec-head" data-u32-name="sec-features-head">
+      <span class="sec-num" data-u32-name="sec-features-num">03</span>
+      <h2 class="sec-title" data-u32-name="sec-features-title">其余能力</h2>
+      <span class="sec-note" data-u32-name="sec-features-note">七条路由</span>
+    </div>
+    <div class="feat" data-u32-name="feat-grid">
+      <div class="feat-item" data-u32-name="feat-file"><div class="feat-k" data-u32-name="feat-file-k">/file/</div><h3 class="feat-h" data-u32-name="feat-file-h">本地文件访问</h3><p class="feat-p" data-u32-name="feat-file-p">直链读取允许目录里的文件，兼容 Windows 盘符与 <code>~/</code>，自带目录浏览。</p></div>
+      <div class="feat-item" data-u32-name="feat-fs"><div class="feat-k" data-u32-name="feat-fs-k">/api/fs</div><h3 class="feat-h" data-u32-name="feat-fs-h">文件写入</h3><p class="feat-p" data-u32-name="feat-fs-p">写入、追加、建目录、删除、移动、复制、查询，共七个动作。</p></div>
+      <div class="feat-item" data-u32-name="feat-proxy"><div class="feat-k" data-u32-name="feat-proxy-k">/proxy/</div><h3 class="feat-h" data-u32-name="feat-proxy-h">CORS 代理</h3><p class="feat-p" data-u32-name="feat-proxy-p">转发任意 HTTP 请求，补齐 CORS 头，绕过跨域限制。</p></div>
+      <div class="feat-item" data-u32-name="feat-bridge"><div class="feat-k" data-u32-name="feat-bridge-k">/bridge</div><h3 class="feat-h" data-u32-name="feat-bridge-h">浏览器桥</h3><p class="feat-p" data-u32-name="feat-bridge-p">注册、长轮询、回包，AI 与页面之间的透明转发层。</p></div>
+      <div class="feat-item" data-u32-name="feat-status"><div class="feat-k" data-u32-name="feat-status-k">/status</div><h3 class="feat-h" data-u32-name="feat-status-h">运行状态</h3><p class="feat-p" data-u32-name="feat-status-p">进程与宿主机指标，页面与 JSON 同源，不采集敏感信息。</p></div>
+      <div class="feat-item" data-u32-name="feat-config"><div class="feat-k" data-u32-name="feat-config-k">/config</div><h3 class="feat-h" data-u32-name="feat-config-h">可视化配置</h3><p class="feat-p" data-u32-name="feat-config-p">端口、允许列表、MIME 类型网页上改，即时生效。</p></div>
+    </div>
+  </section>
+
+  <section class="sec" id="docs" data-u32-name="sec-docs">
+    <div class="sec-head" data-u32-name="sec-docs-head">
+      <span class="sec-num" data-u32-name="sec-docs-num">04</span>
+      <h2 class="sec-title" data-u32-name="sec-docs-title">文档</h2>
+      <span class="sec-note" data-u32-name="sec-docs-note">9 篇</span>
+    </div>
+    <div class="doc-filter" data-u32-name="doc-filter" hidden>
+      <input type="search" id="docq" placeholder="筛选文档" aria-label="筛选文档" data-u32-name="doc-input">
+      <span class="cnt" id="doccnt" data-u32-name="doc-count"></span>
+    </div>
+    <div class="doc-list" id="doclist" data-u32-name="doc-list">
+      <a class="doc" href="./reader.html?doc=file-access" data-doc="file-access 本地文件访问 路径 盘符 目录浏览" data-u32-name="doc-file-access"><span class="doc-badge" data-u32-name="doc-file-access-badge">MD</span><span class="doc-main"><span class="doc-name">本地文件访问</span><span class="doc-desc">/file/ 路径规则、盘符映射、目录浏览</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=fs-api" data-doc="fs-api 文件写入 API 七个动作 错误码" data-u32-name="doc-fs-api"><span class="doc-badge" data-u32-name="doc-fs-api-badge">API</span><span class="doc-main"><span class="doc-name">文件写入 API</span><span class="doc-desc">/api/fs 七个动作、参数与错误码</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=picker" data-doc="picker 文件选择器 三种模式 postMessage" data-u32-name="doc-picker"><span class="doc-badge" data-u32-name="doc-picker-badge">MD</span><span class="doc-main"><span class="doc-name">文件选择器</span><span class="doc-desc">/picker 三种模式与回传协议</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=cors-proxy" data-doc="cors-proxy CORS 代理 跨域 请求头" data-u32-name="doc-cors"><span class="doc-badge" data-u32-name="doc-cors-badge">MD</span><span class="doc-main"><span class="doc-name">CORS 代理</span><span class="doc-desc">/proxy/ 转发流程与请求头改写</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=bridge" data-doc="bridge 浏览器桥 注册 长轮询 回包 超时" data-u32-name="doc-bridge"><span class="doc-badge" data-u32-name="doc-bridge-badge">MD</span><span class="doc-main"><span class="doc-name">浏览器桥</span><span class="doc-desc">/bridge 注册、长轮询、回包与超时</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=status" data-doc="status 运行状态 指标 JSON" data-u32-name="doc-status"><span class="doc-badge" data-u32-name="doc-status-badge">MD</span><span class="doc-main"><span class="doc-name">运行状态</span><span class="doc-desc">/status 页面与 JSON 字段说明</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=config" data-doc="config 配置管理 权限模型 配置文件" data-u32-name="doc-config"><span class="doc-badge" data-u32-name="doc-config-badge">MD</span><span class="doc-main"><span class="doc-name">配置管理</span><span class="doc-desc">/config 配置文件结构与权限模型</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=cli" data-doc="cli 命令行 u32-ls 子命令" data-u32-name="doc-cli"><span class="doc-badge" data-u32-name="doc-cli-badge">CLI</span><span class="doc-main"><span class="doc-name">命令行</span><span class="doc-desc">u32-ls 全部子命令与用法</span></span><span class="doc-arrow">→</span></a>
+      <a class="doc" href="./reader.html?doc=bridge-connection-lifecycle" data-doc="bridge-connection-lifecycle 桥连接生命周期 心跳 判死 时序" data-u32-name="doc-lifecycle"><span class="doc-badge" data-u32-name="doc-lifecycle-badge">ARCH</span><span class="doc-main"><span class="doc-name">桥连接生命周期</span><span class="doc-desc">身份模型、心跳、上线与判死的完整时序</span></span><span class="doc-arrow">→</span></a>
+    </div>
+  </section>
+
+  <section class="sec" id="start" data-u32-name="sec-start">
+    <div class="sec-head" data-u32-name="sec-start-head">
+      <span class="sec-num" data-u32-name="sec-start-num">05</span>
+      <h2 class="sec-title" data-u32-name="sec-start-title">快速开始</h2>
+      <span class="sec-note" data-u32-name="sec-start-note">30 秒</span>
+    </div>
+    <div class="start" data-u32-name="start-body">
+      <div class="code-box" data-u32-name="start-code">
+        <div class="code-bar" data-u32-name="code-bar"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span style="margin-left:6px">terminal</span></div>
+        <pre data-u32-name="code-block"><span class="cm"># 安装</span>
+npm install -g u32-local-server
+
+<span class="cm"># 启动，默认 127.0.0.1:19527</span>
+u32-ls start
+
+<span class="cm"># 打开配置页，加一个允许目录</span>
+u32-ls open .</pre>
+      </div>
+      <div class="notes" data-u32-name="start-notes">
+        <p data-u32-name="note-1"><b>默认拒绝所有访问。</b>加允许目录之前什么都读不到，这是设计不是 bug。</p>
+        <p data-u32-name="note-2"><b>只监听本机。</b>不暴露公网；写接口另带同源 Origin 校验，挡住跨站请求。</p>
+        <p data-u32-name="note-3"><b>装在哪。</b>在 AI 工具的托管终端里 <code>npm i -g</code> 可能落到工具自带的 node，装前先看 <code>npm config get prefix</code>。</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer data-u32-name="footer">
+  <div class="wrap foot" data-u32-name="footer-inner">
+    <span data-u32-name="footer-copy">© 2026 vtxf · MIT License</span>
+    <div class="foot-links" data-u32-name="footer-links">
+      <a href="https://github.com/u32-cn/u32-local-server" data-u32-name="footer-repo">源码</a>
+      <a href="https://github.com/u32-cn/u32-local-server/blob/main/README.md" data-u32-name="footer-readme">README</a>
+      <a href="https://github.com/u32-cn/u32-local-server/blob/main/CHANGELOG.md" data-u32-name="footer-changelog">CHANGELOG</a>
+      <a href="https://github.com/u32-cn/u32-local-server/blob/main/LICENSE" data-u32-name="footer-license">许可</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  var box = document.getElementById('docq');
+  var wrap = document.querySelector('[data-u32-name="doc-filter"]');
+  var list = document.getElementById('doclist');
+  var cnt = document.getElementById('doccnt');
+  if (!box || !list) return;
+  var items = Array.prototype.slice.call(list.querySelectorAll('.doc'));
+  wrap.hidden = false;
+  function apply(){
+    var q = box.value.trim().toLowerCase();
+    var n = 0;
+    items.forEach(function(el){
+      var hay = (el.getAttribute('data-doc') || el.textContent).toLowerCase();
+      var hit = !q || hay.indexOf(q) > -1;
+      el.hidden = !hit;
+      if (hit) n++;
+    });
+    cnt.textContent = n + ' / ' + items.length;
+  }
+  box.addEventListener('input', apply);
+  apply();
+})();
+</script>
+</body>
+</html>

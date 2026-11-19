@@ -187,8 +187,9 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
       return proxy(req, res)
     }
     if (url.pathname.startsWith('/docs/')) {
-      // AI 功能文档（public/docs/*.md）：/docs/<name>.md 映射到 public/docs，供 llms.txt 引用
-      const docPath = path.join(publicDir, 'docs', path.basename(url.pathname))
+      // AI 功能文档（docs/readme/*.md）：/docs/<name>.md 映射到包内 docs/readme，
+      // 该目录同时是 GitHub Pages 站点的文档源，改一处两边生效，供 llms.txt 引用
+      const docPath = path.join(__dirname, '..', 'docs', 'readme', path.basename(url.pathname))
       if (!docPath.endsWith('.md') || !fs.existsSync(docPath) || !fs.statSync(docPath).isFile()) {
         return sendPlain(res, 404, '404 Not Found')
       }

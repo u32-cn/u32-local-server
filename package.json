@@ -28,6 +28,7 @@
   "files": [
     "src",
     "public",
+    "docs/readme",
     "package.json",
     "README.md",
     "CHANGELOG.md"

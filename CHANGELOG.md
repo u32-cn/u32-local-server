@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Docs
+- 📝 `docs/` 重构为 GitHub Pages 站点（`.nojekyll` + `index.html` 主页 + `assets/` + `reader.html` 站内渲染），经 EdgeOne 回源分发到 `u32-local-server.u32.cn`
+- 📝 文档合并为单一源：`public/docs/*.md` 与 `docs/bridge-connection-lifecycle.md` 移入 `docs/readme/`，`src/router.js` 的 `/docs/<name>.md` 改读该目录，npm `files` 白名单增列 `docs/readme`；改一处同时作用于站点与运行时
+- 📝 README 新增「两个核心用途」：本地文件服务（对比 File System Access API 的授权模型）与 AI 桥接服务，并说明两者都需 Web 端按协议改造
+- 🔧 `public/css/space-grotesk.css` 的三个 `@font-face` 由 `fonts.gstatic.com` 改为本地 `public/webfonts/space-grotesk-*.woff2`，消除境外 CDN 依赖
+
+### Changed
+- 🔧 `register` 生成的 VBS 脚本（hidden/open/copy-url）从仓库根目录移至 `runtime/` 子目录，`.gitignore` 同步改为忽略整个 `runtime/`；运行时生成物不再污染项目根目录
+
+### 注意（升级需操作）
+- ⚠️ 从旧版本升级后，Windows 下需重跑 `u32-ls unregister && u32-ls register`：注册表中记录的是 VBS 的绝对路径，不重注册右键菜单与开机自启会指向已不存在的旧位置
+
 ## [1.6.0] - 2026-11-18
 
 ### Added

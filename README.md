@@ -2,6 +2,32 @@
 
 本地 HTTP 文件服务器 + CORS 代理，纯 Node.js 零依赖。
 
+文档站：<https://u32-local-server.u32.cn/>
+
+## 两个核心用途
+
+### 一、让 Web 应用安全地使用本机文件
+
+Web 端本来就能读写本地文件——File System Access API 已经能拿到目录句柄。麻烦在授权：句柄的权限不能跨会话保持，页面刷新、换个标签、第二天再打开，都要用户重新点一遍确认；想给同一个应用备好一组目录长期使用，普通网页做不到（持久授权目前只有已安装的 PWA 才申请得到）。于是每次用都要手动走一遍授权流程，这也正是很多 Web 应用最终放弃本地文件能力的原因。
+
+u32-local-server 把这层授权移到服务端，一次配置、长期可用：
+
+- **允许目录写一次**：配置里逐条声明路径，并标明**只读**还是**读写**；`deny` 列表优先于 `allow`
+- **页面直接用**：页面通过 `/file/` 读、`/api/fs` 写，不再弹授权框，刷不刷新都一样
+- **自带文件选择器**：`/picker` 提供 打开文件 / 选择文件夹 / 另存为 三种模式，嵌进 iframe 或弹窗即可，浏览范围受允许列表约束，不必自己再造一个目录浏览器
+
+安全边界是确定的：只监听 `127.0.0.1`，不暴露公网；不在允许列表里的路径一律拒绝；写接口另带同源 Origin 校验，挡住跨站请求。
+
+### 二、让 AI 工具直接操控你的 Web App
+
+页面接入 `/bridge` 后向服务端注册，并声明一份 `help`——这个页面接受哪些指令、返回什么。AI 工具因此在 `/bridge/api/apps` 里发现它，POST 一条消息，同步拿到结构化回包。
+
+- AI 不需要理解你的界面结构，也不需要截图、识别和模拟点击
+- 服务器只做透明转发，指令的业务语义完全由页面自己定义
+- 一条指令至多送达一次，超时 504 由 AI 侧自行重试；状态全在内存，重启即清空
+
+**两个用途都要求 Web 端按协议改造**，不是装上就透明生效：文件服务要按 `/file/`、`/api/fs` 的参数与权限约定取数；桥要按 注册 → 长轮询 → 回包 的约定接入。改造本身很小，但省不掉。
+
 ## 功能特性
 
 - 📁 **本地文件访问** - 通过 HTTP 访问本地文件系统，支持 Windows 盘符和 `~/`
@@ -372,6 +398,7 @@ location / {
 | `/config` | 配置管理页面 |
 | `/config/api` | 配置 REST API |
 | `/llms.txt` | 站点说明（面向 LLM） |
+| `/docs/<name>.md` | 功能文档（读包内 `docs/readme/`，与文档站同一批文件）|
 | `/public/...` | 静态资源 |
 | `/` | 首页；Linux 下其他路径直接映射到文件系统 |
 
@@ -462,12 +489,13 @@ src/cmd-service.js    # register/unregister：注册表 Run 键自启 + 右键�
 2. `CHANGELOG.md` 顶部新增 `[X.Y.Z] - 日期` 段，按 Added / Changed / Fixed / Docs 分类
 3. 提交 `chore(release): vX.Y.Z——<改动摘要>`
 4. 打 tag `vX.Y.Z` 并推送
-5. `npm publish`（`publishConfig` 已指向 npmjs.org；`files` 白名单仅含 `src/`、`public/`、`package.json`、`README.md`、`CHANGELOG.md`，`docs/`、`test/`、`LICENSE` 不进 npm 包）
+5. `npm publish`（`publishConfig` 已指向 npmjs.org；`files` 白名单含 `src/`、`public/`、`docs/readme/`、`package.json`、`README.md`、`CHANGELOG.md`；`docs/index.html` 等站点文件、`test/`、`LICENSE` 不进 npm 包）
 
 ### 相关文档
 
-- `docs/` - 架构设计文档（如浏览器桥连接生命周期 `docs/bridge-connection-lifecycle.md`）
-- `public/llms.txt` + `public/docs/*.md` - 运行时经 HTTP 伺服给 AI 的功能文档（改功能需同步）
+- **文档站** <https://u32-local-server.u32.cn/> —— 源码在 `docs/`，GitHub Pages 出站、EdgeOne 回源加速。`docs/index.html` 是主页，`docs/reader.html?doc=<id>` 站内渲染 markdown
+- `docs/readme/*.md` - **文档唯一源**：既是 Pages 站点的正文，也是 npm 包内 `/docs/<name>.md` 的伺服内容（`src/router.js` 按文件名映射到该目录），改一处两边生效
+- `public/llms.txt` - 面向 LLM 的功能索引，指向上述 `/docs/*.md`
 - `AGENTS.md` - AI agent 行为纪律（事实性内容以本 README 为准）
 
 ## 许可证
