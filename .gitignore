@@ -15,3 +15,5 @@ runtime/
 .aider*
 .copilot*
 CLAUDE.md.local
+# playwright-cli 在项目根写的会话日志与页面快照
+.playwright-cli/
