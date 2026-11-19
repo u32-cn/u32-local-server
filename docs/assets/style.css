@@ -151,7 +151,7 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding:22px 0 36px}
 .article li{margin:4px 0}
 .article a{color:var(--accent)}
 .article code{font-family:var(--mono);font-size:12.5px;background:rgba(16,24,40,.05);padding:1.5px 5px;border-radius:4px}
-.article pre{background:#0F172A;color:#E6EDF7;border-radius:12px;padding:16px 18px;font-size:12.5px;line-height:1.75;margin:14px 0;overflow-x:auto}
+.article pre{background:rgba(16,24,40,.04);color:#243044;border:1px solid var(--line);border-radius:12px;padding:16px 18px;font-size:12.5px;line-height:1.75;margin:14px 0;overflow-x:auto}
 .article pre code{background:transparent;color:inherit;padding:0;font-size:inherit}
 .article blockquote{margin:14px 0;padding:2px 0 2px 14px;border-left:2px solid rgba(79,70,229,.5);color:var(--ink-2);font-size:14px}
 .article table{font-size:13px;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin:14px 0}
