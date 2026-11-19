@@ -4,6 +4,9 @@ All notable changes to this project will be documented in this file.
 
 ## [1.7.0] - 2026-11-19
 
+### Changed
+- 🔧 首页「接入 AI」区精简为一句话指令（读取 llms.txt 后汇报在线桥实例、能力及操控方式），移除原 6 条场景指令与说明文案，列表改单列
+
 ### Added
 - ✨ 新增 `/picker-guide` 文件选择器引导页：三张模式卡片（打开文件 / 选择目录 / 另存为）各附 iframe 接入脚本与「试用」按钮，点击后以内置模态 iframe 窗口打开 /picker，选中结果实时显示在卡片下方；首页六宫格「文件选择器」入口改指向该引导页（/picker 与 /picker-demo 保持不变）
 - 📚 文档站纳入本地服务：新增 `/docs`（重定向）、`/docs/index.html`、`/docs/reader.html`、`/docs/assets/...`、`/docs/readme/<name>.md` 路由，离线环境下访问 `http://127.0.0.1:<port>/docs` 即可看到完整排版文档；`/docs/<name>.md` 旧直链兼容保留；各页面导航「文档 ↗」改指阅读页

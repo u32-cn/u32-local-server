@@ -40,19 +40,10 @@ const ENTRIES = [
   },
 ]
 
-// 提示词写法原则（实测教训：裸写「先读 llms.txt，然后用浏览器桥控制页面」，AI 连 llms.txt
-// 在哪都不知道，翻遍桌面/下载才反问用户，全程没沾服务边）：
-//   1. 给完整 URL（http://127.0.0.1:PORT/llms.txt），不留「llms.txt」三个字让 AI 猜
-//   2. 目标动作可验证：要么服务端有真实回包可汇报，要么产出明确结果
-//   3. 不承诺前置条件不满足的事（桥没页面接入、允许列表为空时，「控制页面/读文件」必然落空）
-// PORT 占位符由 renderPage 按实际端口替换
+// 提示词只给一条，不堆场景。实测教训：裸写「先读 llms.txt」AI 根本不知道文件在哪，
+// 必须给完整 URL（PORT 由 renderPage 按实际端口替换），目标聚焦在线桥实例的能力与操控。
 const AI_PROMPTS = [
-  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明探测本机 u32-local-server：服务是否在运行、允许列表有几条、桥有几个在线实例，汇总告诉我',
-  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明从 /file/ 抓取允许列表内一个文件的内容展示给我；若允许列表为空，告诉我去 /config 加哪个目录',
-  '读取 http://127.0.0.1:PORT/llms.txt ，查询 /bridge 的在线页面实例并告诉我：哪些页面现在就能接 AI 指令，没有实例时网页要怎样接入桥',
-  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明用 /api/fs 在允许列表内的目录创建一个测试文件，写完再读回来验证给我看',
-  '读取 http://127.0.0.1:PORT/llms.txt ，按其中 /picker 文档给出一段可直接粘贴到我网页里的接入代码，让网页能弹出文件选择框',
-  '读取 http://127.0.0.1:PORT/llms.txt ，按其中说明通过 /proxy/ 抓取 example.com 的页面标题，验证 CORS 代理可用',
+  '读取 http://127.0.0.1:PORT/llms.txt，告诉我有哪些桥在线实例。他们有哪些能力，我能如何操控他们。',
 ]
 
 const COMMANDS = [
@@ -78,10 +69,9 @@ function renderEntries() {
 }
 
 function renderPrompts(port) {
-  return AI_PROMPTS.map((raw, i) => {
+  return AI_PROMPTS.map((raw) => {
     const p = raw.replace(/PORT/g, String(port))
-    return '<div class="pr"><span class="i">' + (i + 1) + '</span>' +
-    '<span class="t">' + p + '</span>' +
+    return '<div class="pr"><span class="t">' + p + '</span>' +
     '<button type="button" data-copy="' + p.replace(/"/g, '&quot;') + '">复制</button></div>'
   }).join('')
 }
@@ -159,7 +149,7 @@ function renderPage(config, snap) {
   .ai-top-llms code { font-family: var(--mono); font-size: 11.5px; color: var(--dim); background: #F4F4F7; border-radius: 6px; padding: 3px 9px; }
   .ai-top-llms button { font-family: inherit; font-size: 11.5px; color: var(--dim); background: #fff; border: 1px solid var(--line-hi); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
   .ai-top-llms button:hover { color: var(--blue); border-color: var(--blue); }
-  .ai-top-list { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; }
+  .ai-top-list { display: grid; grid-template-columns: 1fr; }
   .ai-top-list .pr { padding: 7px 0; border-bottom: 1px solid #F2F2F5; }
   .ai-top-list .pr:nth-last-child(-n+2) { border-bottom: none; }
   .op { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px 18px; }
@@ -258,7 +248,6 @@ function renderPage(config, snap) {
     <div class="ai-top-head">
       <svg viewBox="0 0 24 24"><path d="M12 3l1.9 5.6L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.4z"/></svg>
       <b>接入 AI</b>
-      <span>把下面的指令发给任意能发 HTTP 请求的 AI 工具（WorkBuddy / Cursor 等），AI 读 llms.txt 后即可操作本服务</span>
       <span class="ai-top-llms">
         <code>http://127.0.0.1:${config.port}/llms.txt</code>
         <button type="button" data-view-llms>查看</button>
