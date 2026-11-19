@@ -18,6 +18,8 @@ All notable changes to this project will be documented in this file.
 - 🔧 状态页与配置页套用同一视觉：统一顶栏（首页 / 状态 / 配置 / 文档）、卡片圆角与配色、按钮与表单样式；状态页调试级字段（argv / execArgv / 缺页 / 上下文切换等 43 项）默认折叠，点「全部字段」展开（实测 35 → 78 行）
 - 🔧 状态页请求指标排除 `/api/summary` 与 `/api/service-status` 轮询，避免首页每 5s 刷新污染指标
 - 🔧 `/favicon.ico` 回 204 并新增 SVG 图标，消除每页控制台的 403 与指标里的 4xx 噪音；`public/` 静态资源 MIME 表补 `.svg`
+- 🔧 其余子页面统一到 `public/css/base.css`：`/bridge`、`/picker-demo`、`/proxy/`、`/file/` 目录列表与 403/500 错误页改用同一顶栏（品牌 + 版本 + 地址 + 导航）、白卡分区、按钮与页脚；配置页补地址与统一页脚、页宽对齐 1140，状态页补地址
+- 🔧 `/proxy/` 与 `/picker-demo` 去掉 FontAwesome 按钮图标与 `space-grotesk.css` 引用，表单 / 按钮改用 base.css 基准
 
 ### Docs
 - 📝 `docs/` 重构为 GitHub Pages 站点（`.nojekyll` + `index.html` 主页 + `assets/` + `reader.html` 站内渲染），经 EdgeOne 回源分发到 `u32-local-server.u32.cn`

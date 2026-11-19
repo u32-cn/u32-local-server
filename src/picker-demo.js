@@ -1,6 +1,11 @@
 // picker 演示页（/picker-demo）：以 iframe / 弹窗两种宿主方式嵌入 /picker，
 // 实时展示 URL 参数拼装与 postMessage 回传结果，供宿主集成参考
+// 视觉基准与首页 / 状态 / 配置 / 浏览器桥一致：public/css/base.css
 const logger = require('./logger')
+const PACKAGE_JSON = require('../package.json')
+
+const DOCS_URL = 'https://u32-local-server.u32.cn/'
+const GITHUB_URL = 'https://github.com/u32-cn/u32-local-server'
 
 // 最小宿主集成示例（展示在页面底部的代码块，与页面自身逻辑一致）
 function snippetHtml(port) {
@@ -25,7 +30,8 @@ window.open('http://127.0.0.1:${port}/picker?mode=open-file')`
   return SNIPPET.replace(/&/g, '&amp;').replace(/</g, '&lt;')
 }
 
-function renderPage(port) {
+function renderPage(port, addr) {
+  const version = PACKAGE_JSON.version
   const pickerBase = `http://127.0.0.1:${port}/picker`
   const snippetEsc = snippetHtml(port)
   return `<!DOCTYPE html>
@@ -33,149 +39,132 @@ function renderPage(port) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Picker 演示 - u32-local-server</title>
-  <link rel="stylesheet" href="./public/css/space-grotesk.css">
+  <title>文件选择器演示 - u32-local-server</title>
+  <link rel="icon" type="image/svg+xml" href="./public/favicon.svg">
+  <link rel="stylesheet" href="./public/css/base.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #FFFFFF; color: #000000; line-height: 1.5; font-size: 14px;
-    }
-    .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
-    .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 24px; }
-    h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 5px; }
-    .sub { font-size: 13px; color: #666; }
-    .sub a { color: #000; font-weight: 700; text-decoration: none; border-bottom: 1px solid #000; }
-    .panel { border: 1px solid #000; margin-bottom: 20px; }
-    .panel-title {
-      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
-      background: #F5F5F5; padding: 8px 16px; border-bottom: 1px solid #E5E5E5;
-    }
-    .panel-body { padding: 16px; }
-    .controls { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
-    .ctl { display: flex; flex-direction: column; gap: 4px; }
-    .ctl label { font-size: 12px; font-weight: 700; }
-    .ctl select, .ctl input[type="text"] {
-      font: inherit; padding: 5px 8px; border: 1px solid #000; background: #FFF; min-width: 180px;
-    }
-    .chk { display: flex; align-items: center; gap: 6px; font-size: 13px; padding-bottom: 6px; }
-    .chk input { width: 14px; height: 14px; accent-color: #000; }
-    .embed-toggle { display: flex; gap: 0; }
-    .embed-toggle button {
-      font: inherit; font-size: 13px; font-weight: 700; padding: 5px 14px;
-      border: 1px solid #000; background: #FFF; cursor: pointer;
-    }
-    .embed-toggle button + button { border-left: none; }
-    .embed-toggle button.on { background: #000; color: #FFF; }
-    .url-bar {
-      display: flex; gap: 8px; margin-top: 14px; align-items: center;
-    }
-    .url-bar code {
-      flex: 1; font-family: 'Space Grotesk', monospace; font-size: 12px;
-      background: #F5F5F5; padding: 6px 10px; word-break: break-all; border: 1px solid #E5E5E5;
-    }
-    .btn {
-      font: inherit; font-size: 13px; font-weight: 700; padding: 5px 14px;
-      border: 1px solid #000; background: #FFF; cursor: pointer; white-space: nowrap;
-    }
-    .btn:hover { background: #F0F0F0; }
-    .btn.primary { background: #000; color: #FFF; }
-    .btn.primary:hover { background: #333; }
-    .demo-split { display: grid; grid-template-columns: 1fr 380px; gap: 20px; align-items: start; }
-    @media (max-width: 900px) { .demo-split { grid-template-columns: 1fr; } }
-    iframe#pickerFrame {
-      width: 100%; height: 560px; border: 1px solid #000; background: #F0F0F0; display: block;
-    }
-    .iframe-empty {
-      height: 560px; border: 1px dashed #999; display: flex; align-items: center; justify-content: center;
-      color: #666; font-size: 13px;
-    }
-    #events { display: flex; flex-direction: column; gap: 10px; max-height: 560px; overflow: auto; }
-    .ev { border: 1px solid #E5E5E5; border-left: 3px solid #999; padding: 8px 10px; font-size: 12px; }
-    .ev.select { border-left-color: #000; }
-    .ev.cancel { border-left-color: #BBB; color: #666; }
-    .ev-head { font-weight: 700; margin-bottom: 4px; display: flex; gap: 8px; align-items: center; }
-    .ev-head .t { color: #999; font-weight: 400; margin-left: auto; }
-    .ev pre {
-      font-family: 'Space Grotesk', monospace; font-size: 11px; background: #F5F5F5;
-      padding: 6px 8px; white-space: pre-wrap; word-break: break-all;
-    }
-    .ev a { color: #000; }
-    .ev-empty { color: #666; font-size: 13px; border: 1px dashed #999; padding: 30px 16px; text-align: center; }
-    pre.snippet {
-      font-family: 'Space Grotesk', monospace; font-size: 12px; line-height: 1.6;
-      background: #F5F5F5; padding: 14px 16px; overflow: auto; white-space: pre;
-    }
-    .hint { font-size: 12px; color: #666; margin-top: 8px; }
-    .hint code { background: #F5F5F5; padding: 0 4px; }
+    .ctl-row { display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-end; padding: 16px 18px; }
+    .ctl { display: flex; flex-direction: column; gap: 6px; }
+    .ctl label { font-size: 12px; color: var(--dim); }
+    .ctl select, .ctl input[type="text"] { min-width: 190px; }
+    .chk { display: flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--dim); padding-bottom: 8px; }
+    .chk input { width: 14px; height: 14px; accent-color: var(--blue); }
+
+    .seg { display: inline-flex; border: 1px solid var(--line-hi); border-radius: 8px; overflow: hidden; }
+    .seg button { font-family: inherit; font-size: 12.5px; padding: 5px 14px; border: 0; background: #fff; color: var(--dim); cursor: pointer; }
+    .seg button + button { border-left: 1px solid var(--line-hi); }
+    .seg button.on { background: var(--blue); color: #fff; }
+
+    .url-row { display: flex; gap: 8px; align-items: center; padding: 0 18px 16px; }
+    .url-row code { flex: 1; font-family: var(--mono); font-size: 12px; background: #F7F7F9; border: 1px solid var(--line); border-radius: 8px; padding: 7px 11px; word-break: break-all; color: var(--dim); }
+    .hint { padding: 0 18px 16px; font-size: 12px; color: var(--faint); line-height: 1.7; }
+    .hint code { font-family: var(--mono); font-size: 11.5px; background: #F4F4F7; border-radius: 4px; padding: 1px 5px; }
+    .hint a { color: var(--blue); }
+
+    .split { display: grid; grid-template-columns: 1fr 380px; gap: 12px; align-items: start; }
+    @media (max-width: 980px) { .split { grid-template-columns: 1fr; } }
+    .body { padding: 16px 18px; }
+    iframe#pickerFrame { width: 100%; height: 560px; border: 1px solid var(--line); border-radius: 8px; background: #F0F0F0; display: block; }
+    .iframe-empty { height: 560px; border: 1px dashed var(--line-hi); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--faint); font-size: 12.5px; }
+
+    #events { display: flex; flex-direction: column; gap: 8px; max-height: 500px; overflow: auto; }
+    .ev { border: 1px solid var(--line); border-left: 2px solid var(--line-hi); border-radius: 8px; padding: 9px 11px; font-size: 12px; background: #fff; }
+    .ev.select { border-left-color: var(--blue); }
+    .ev.cancel { border-left-color: var(--faint); color: var(--dim); }
+    .ev-head { display: flex; gap: 8px; align-items: center; font-weight: 500; margin-bottom: 5px; }
+    .ev-head .t { margin-left: auto; color: var(--faint); font-weight: 400; }
+    .ev pre { font-family: var(--mono); font-size: 11px; background: #F7F7F9; border-radius: 6px; padding: 7px 9px; margin: 0; white-space: pre-wrap; word-break: break-all; color: var(--dim); }
+    .ev a { display: inline-block; margin-top: 6px; color: var(--blue); font-size: 11.5px; }
+    .ev-empty { color: var(--faint); font-size: 12.5px; border: 1px dashed var(--line-hi); border-radius: 8px; padding: 34px 16px; text-align: center; line-height: 1.9; }
+
+    pre.snippet { font-family: var(--mono); font-size: 12px; line-height: 1.7; background: #F7F7F9; border-radius: 8px; padding: 14px 16px; margin: 0; overflow: auto; color: #243044; }
+    .foot-note { padding: 12px 18px 16px; font-size: 12px; color: var(--faint); line-height: 1.7; }
+    .foot-note code { font-family: var(--mono); font-size: 11.5px; background: #F4F4F7; border-radius: 4px; padding: 1px 5px; }
+    .foot-note a { color: var(--blue); }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="header">
-      <h1>Picker 演示</h1>
-      <div class="sub">Win10 对话框风格文件选择器 · 宿主集成演示 · 参考文档 <a href="./docs/picker.md">/docs/picker.md</a></div>
-    </div>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand"><span class="dot ok"></span>u32-local-server<span class="ver">v${version}</span></div>
+    <span class="addr">${addr || ''}</span>
+    <nav class="nav">
+      <a href="./">首页</a>
+      <a href="./status">状态</a>
+      <a href="./config">配置</a>
+      <span class="sep"></span>
+      <a href="${DOCS_URL}" target="_blank" rel="noopener">文档 ↗</a>
+    </nav>
+  </div>
+</header>
 
-    <div class="panel">
-      <div class="panel-title">参数</div>
-      <div class="panel-body">
-        <div class="controls">
-          <div class="ctl">
-            <label for="mode">mode 模式</label>
-            <select id="mode">
-              <option value="open-file">open-file — 打开文件</option>
-              <option value="open-dir">open-dir — 选择文件夹</option>
-              <option value="save-file">save-file — 另存为</option>
-            </select>
-          </div>
-          <div class="ctl">
-            <label for="type">type 类型过滤</label>
-            <input type="text" id="type" placeholder="如 *.jpg; *.png（留空不过滤）" size="30">
-          </div>
-          <label class="chk"><input type="checkbox" id="allowEmpty"> allowEmpty=1（open-file 文件名留空＝选当前文件夹）</label>
-          <label class="chk"><input type="checkbox" id="chrome" checked> chrome=1（显示标题栏；iframe 嵌入可去掉）</label>
-          <div class="ctl">
-            <label>嵌入方式</label>
-            <div class="embed-toggle">
-              <button id="embIframe" class="on">iframe</button>
-              <button id="embPopup">弹窗</button>
-            </div>
-          </div>
-        </div>
-        <div class="url-bar">
-          <code id="urlPreview"></code>
-          <a class="btn" id="openRaw" href="#" target="_blank">独立打开</a>
-        </div>
-        <div class="hint" id="embedHint"></div>
+<main class="main wrap">
+  <div class="h">参数<span class="right">Win10 对话框风格 · 宿主集成演示 · <a href="./docs/picker.md" target="_blank" rel="noopener" style="color:var(--blue)">picker 文档</a></span></div>
+  <div class="card">
+    <div class="ctl-row">
+      <div class="ctl">
+        <label for="mode">mode 模式</label>
+        <select id="mode">
+          <option value="open-file">open-file — 打开文件</option>
+          <option value="open-dir">open-dir — 选择文件夹</option>
+          <option value="save-file">save-file — 另存为</option>
+        </select>
       </div>
-    </div>
-
-    <div class="demo-split">
-      <div class="panel">
-        <div class="panel-title">宿主区（iframe / 弹窗入口）</div>
-        <div class="panel-body">
-          <div id="hostArea"></div>
-          <div style="margin-top: 12px;"><button class="btn primary" id="openPopup">弹窗打开 picker</button></div>
-        </div>
+      <div class="ctl">
+        <label for="type">type 类型过滤</label>
+        <input type="text" id="type" placeholder="如 *.jpg; *.png（留空不过滤）" size="30">
       </div>
-      <div class="panel">
-        <div class="panel-title">postMessage 回传结果</div>
-        <div class="panel-body">
-          <div id="events"><div class="ev-empty">等待 picker 回传…<br><br>在左侧选择文件/文件夹，或取消</div></div>
-          <div class="hint">事件名必须匹配 <code>source === 'u32-picker'</code>；<code>url</code> 可点击验证 /file/ 直链。</div>
+      <label class="chk"><input type="checkbox" id="allowEmpty"> allowEmpty=1（open-file 文件名留空＝选当前文件夹）</label>
+      <label class="chk"><input type="checkbox" id="chrome" checked> chrome=1（显示标题栏）</label>
+      <div class="ctl">
+        <label>嵌入方式</label>
+        <div class="seg">
+          <button id="embIframe" class="on">iframe</button>
+          <button id="embPopup">弹窗</button>
         </div>
       </div>
     </div>
+    <div class="url-row">
+      <code id="urlPreview"></code>
+      <a class="btn" id="openRaw" href="#" target="_blank" rel="noopener">独立打开</a>
+    </div>
+    <div class="hint" id="embedHint"></div>
+  </div>
 
-    <div class="panel">
-      <div class="panel-title">宿主集成最小代码</div>
-      <div class="panel-body">
-        <pre class="snippet">${snippetEsc}</pre>
-        <div class="hint">save-file 模式仅回传目标路径与 <code>overwrite</code> 标记，不落盘；写入由宿主调用 <code>POST /api/fs</code> 完成，详见 <a href="./docs/fs-api.md">/docs/fs-api.md</a>。</div>
+  <div class="split">
+    <div class="card">
+      <div class="card-head">宿主区<span class="right">iframe / 弹窗入口</span></div>
+      <div class="body">
+        <div id="hostArea"></div>
+        <div style="margin-top: 12px;"><button class="btn btn-primary" id="openPopup">弹窗打开 picker</button></div>
       </div>
+    </div>
+    <div class="card">
+      <div class="card-head">回传结果<span class="right">postMessage</span></div>
+      <div class="body">
+        <div id="events"><div class="ev-empty">等待 picker 回传…<br>在左侧选择文件/文件夹，或取消</div></div>
+      </div>
+      <div class="hint">事件名必须匹配 <code>source === 'u32-picker'</code>；<code>url</code> 可点击验证 /file/ 直链。</div>
     </div>
   </div>
+
+  <div class="h">宿主集成最小代码<span class="right">copy 即用</span></div>
+  <div class="card">
+    <div class="body" style="padding:14px 18px"><pre class="snippet">${snippetEsc}</pre></div>
+    <div class="foot-note">save-file 模式仅回传目标路径与 <code>overwrite</code> 标记，不落盘；写入由宿主调用 <code>POST /api/fs</code> 完成，详见 <a href="./docs/fs-api.md" target="_blank" rel="noopener">fs-api 文档</a>。</div>
+  </div>
+</main>
+
+<footer class="pagefoot">
+  <div class="wrap in">
+    <span>u32-local-server v${version} · MIT</span>
+    <div class="links">
+      <a href="${DOCS_URL}" target="_blank" rel="noopener">文档站</a>
+      <a href="./llms.txt" target="_blank" rel="noopener">llms.txt</a>
+      <a href="${GITHUB_URL}" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
 
 <script>
 const PICKER_BASE = ${JSON.stringify(pickerBase)}
@@ -270,9 +259,10 @@ function serve(req, res) {
     return res.end('Method Not Allowed')
   }
   const port = req.socket.localPort
+  const addr = (req.headers && req.headers.host) || ''
   logger.debug('[PICKER-DEMO] Serving picker demo page\n')
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-  res.end(renderPage(port))
+  res.end(renderPage(port, addr))
 }
 
 module.exports = { serve, renderPage }

@@ -55,6 +55,8 @@ function resolveFilePath(urlPath) {
 }
 
 function directoryListing(dirPath, urlPath, config) {
+  const version = require('../package.json').version
+  const addr = config && config.port ? '127.0.0.1:' + config.port : ''
   const entries = fs.readdirSync(dirPath)
   const tableRows = entries.map(name => {
     try {
@@ -114,229 +116,58 @@ function directoryListing(dirPath, urlPath, config) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(urlPath)}</title>
-  <link rel="stylesheet" href="${escapeHtml(relLink(urlPath, '/public/css/space-grotesk.css'))}">
+  <link rel="stylesheet" href="${escapeHtml(relLink(urlPath, '/public/css/base.css'))}">
   <link rel="stylesheet" href="${escapeHtml(relLink(urlPath, '/public/css/all.min.css'))}">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #FFFFFF;
-      color: #000000;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-
-    .header {
-      border-bottom: 2px solid #000000;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .path {
-      font-size: 24px;
-      font-weight: 700;
-      word-break: break-all;
-    }
-
-    .nav-buttons {
-      display: flex;
-      gap: 10px;
-    }
-
-    .nav-btn {
-      padding: 8px 16px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      text-decoration: none;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      transition: all 0.2s;
-    }
-
-    .nav-btn:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .view-toggle {
-      display: flex;
-      gap: 0;
-      border: 1px solid #000000;
-      margin-bottom: 20px;
-    }
-
-    .view-btn {
-      padding: 10px 20px;
-      border: none;
-      border-right: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .view-btn:last-child {
-      border-right: none;
-    }
-
-    .view-btn.active {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .view-btn:hover:not(.active) {
-      background: #F5F5F5;
-    }
-
-    .table-view {
-      display: block;
-    }
-
-    .list-view {
-      display: none;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid #000000;
-    }
-
-    th {
-      background: #F5F5F5;
-      padding: 12px 15px;
-      text-align: left;
-      font-weight: 700;
-      text-transform: uppercase;
-      font-size: 12px;
-      letter-spacing: 0.05em;
-      border-bottom: 1px solid #000000;
-    }
-
-    td {
-      padding: 12px 15px;
-      border-bottom: 1px solid #E5E5E5;
-      font-size: 13px;
-    }
-
-    tr:last-child td {
-      border-bottom: none;
-    }
-
-    tr:hover td {
-      background: #F5F5F5;
-    }
-
-    a {
-      color: #000000;
-      text-decoration: none;
-      font-weight: 500;
-    }
-
-    a:hover {
-      text-decoration: underline;
-    }
-
-    .file-list {
-      list-style: none;
-      border: 1px solid #000000;
-    }
-
-    .file-item {
-      border-bottom: 1px solid #E5E5E5;
-    }
-
-    .file-item:last-child {
-      border-bottom: none;
-    }
-
-    .file-item a {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 15px 20px;
-      text-decoration: none;
-      transition: background 0.2s;
-    }
-
-    .file-item a:hover {
-      background: #F5F5F5;
-    }
-
-    .file-item i {
-      font-size: 16px;
-      color: #666;
-    }
-
-    .file-item span {
-      flex: 1;
-      font-family: 'Space Grotesk', monospace;
-      font-size: 13px;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border: 1px solid #000000;
-      text-decoration: none;
-      color: #000000;
-      font-weight: 700;
-      transition: all 0.2s;
-    }
-
-    .back-link:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .nav-buttons-group {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 20px;
-    }
-
-    .back-link.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-      background: #F5F5F5;
-      color: #666;
-    }
-
-    .back-link.disabled:hover {
-      background: #F5F5F5;
-      color: #666;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 28px; }
+    .pathbar { display: flex; align-items: center; gap: 10px; margin: 22px 0 12px; }
+    .path { font-family: var(--mono); font-size: 12.5px; color: var(--dim); word-break: break-all; }
+    .nav-buttons-group { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dim); background: #fff; border: 1px solid var(--line-hi); border-radius: 8px; padding: 5px 11px; text-decoration: none; }
+    .back-link:hover { color: var(--blue); border-color: var(--blue); background: var(--blue-soft); }
+    .back-link.disabled { color: var(--faint); background: #F7F7F9; border-color: var(--line); cursor: not-allowed; }
+    .view-toggle { display: inline-flex; border: 1px solid var(--line-hi); border-radius: 8px; overflow: hidden; margin-bottom: 12px; }
+    .view-btn { font-family: inherit; font-size: 12.5px; padding: 5px 14px; border: 0; background: #fff; color: var(--dim); cursor: pointer; }
+    .view-btn + .view-btn { border-left: 1px solid var(--line-hi); }
+    .view-btn.active { background: var(--blue); color: #fff; }
+    .table-view, .list-view { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .list-view { display: none; }
+    table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    th { font-size: 11.5px; font-weight: 500; color: var(--faint); text-align: left; background: #FAFAFB; padding: 9px 18px; border-bottom: 1px solid var(--line); }
+    td { padding: 9px 18px; border-top: 1px solid var(--line); color: var(--ink); }
+    tr:hover td { background: #FAFAFB; }
+    td a { color: var(--ink); text-decoration: none; }
+    td a:hover { color: var(--blue); }
+    .file-list { list-style: none; margin: 0; padding: 0; }
+    .file-item { display: flex; align-items: center; gap: 10px; padding: 9px 18px; border-top: 1px solid var(--line); font-size: 12.5px; }
+    .file-item:first-child { border-top: 0; }
+    .file-item:hover { background: #FAFAFB; }
+    .file-item i { color: var(--faint); width: 14px; }
+    .file-item span { color: var(--faint); font-size: 11.5px; margin-left: auto; }
+    @media (max-width: 900px) { .container { padding: 0 16px; } }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="path">${escapeHtml(urlPath)}</div>
-      <div class="nav-buttons">
-        <a href="${escapeHtml(relLink(urlPath, '/'))}" class="nav-btn">首页</a>
-        <a href="${escapeHtml(relLink(urlPath, '/config'))}" class="nav-btn">配置</a>
-      </div>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand"><span class="dot ok"></span>u32-local-server<span class="ver">v${version}</span></div>
+    <span class="addr">${addr}</span>
+    <nav class="nav">
+      <a href="${escapeHtml(relLink(urlPath, '/'))}">首页</a>
+      <a href="${escapeHtml(relLink(urlPath, '/status'))}">状态</a>
+      <a href="${escapeHtml(relLink(urlPath, '/config'))}">配置</a>
+      <span class="sep"></span>
+      <a href="${escapeHtml(relLink(urlPath, '/docs/file-access.md'))}" target="_blank" rel="noopener">文档 ↗</a>
+    </nav>
+  </div>
+</header>
+
+  <main class="container">
+    <div class="pathbar">
+      <i class="fas fa-folder-open" style="color:var(--faint)"></i>
+      <span class="path">${escapeHtml(urlPath)}</span>
     </div>
 
     ${backButtonsHtml}
@@ -349,9 +180,9 @@ function directoryListing(dirPath, urlPath, config) {
     <div id="table-view" class="table-view">
       <table>
         <tr>
-          <th>Name</th>
-          <th>Size</th>
-          <th>Modified</th>
+          <th>名称</th>
+          <th>大小</th>
+          <th>修改时间</th>
         </tr>
         ${tableRows}
       </table>
@@ -362,7 +193,17 @@ function directoryListing(dirPath, urlPath, config) {
         ${listItems}
       </ul>
     </div>
-  </div>
+  </main>
+
+  <footer class="pagefoot">
+    <div class="wrap in">
+      <span>u32-local-server v${version} · MIT</span>
+      <div class="links">
+        <a href="${escapeHtml(relLink(urlPath, '/llms.txt'))}" target="_blank" rel="noopener">llms.txt</a>
+        <a href="https://github.com/u32-cn/u32-local-server" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </footer>
 
   <script>
     function showView(view) {
@@ -423,169 +264,38 @@ function renderAllowListPage(config, urlPath) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>/file - 允许访问的路径</title>
-  <link rel="stylesheet" href="${escapeHtml(relLink(urlPath, '/public/css/space-grotesk.css'))}">
+  <link rel="stylesheet" href="${escapeHtml(relLink(urlPath, '/public/css/base.css'))}">
   <link rel="stylesheet" href="${escapeHtml(relLink(urlPath, '/public/css/all.min.css'))}">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #FFFFFF;
-      color: #000000;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-
-    .header {
-      border-bottom: 2px solid #000000;
-      padding-bottom: 20px;
-      margin-bottom: 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .path {
-      font-size: 24px;
-      font-weight: 700;
-      word-break: break-all;
-    }
-
-    .nav-buttons {
-      display: flex;
-      gap: 10px;
-    }
-
-    .nav-btn {
-      padding: 8px 16px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      text-decoration: none;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      transition: all 0.2s;
-    }
-
-    .nav-btn:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .intro {
-      background: #F5F5F5;
-      border: 1px solid #000000;
-      padding: 20px 25px;
-      margin-bottom: 30px;
-    }
-
-    .intro-title {
-      font-size: 16px;
-      font-weight: 700;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .intro-text {
-      font-size: 13px;
-      line-height: 1.6;
-      color: #333;
-    }
-
-    .path-list {
-      list-style: none;
-      border: 1px solid #000000;
-    }
-
-    .file-item {
-      border-bottom: 1px solid #E5E5E5;
-    }
-
-    .file-item:last-child {
-      border-bottom: none;
-    }
-
-    .file-item a {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 15px 20px;
-      text-decoration: none;
-      transition: background 0.2s;
-    }
-
-    .file-item a:hover {
-      background: #F5F5F5;
-    }
-
-    .file-item i {
-      font-size: 16px;
-      color: #666;
-    }
-
-    .file-item span {
-      flex: 1;
-      font-family: 'Space Grotesk', monospace;
-      font-size: 13px;
-    }
-
-    .empty-message {
-      padding: 60px 20px;
-      text-align: center;
-    }
-
-    .empty-icon {
-      font-size: 48px;
-      color: #999;
-      margin-bottom: 20px;
-    }
-
-    .empty-text {
-      font-size: 18px;
-      font-weight: 700;
-      margin-bottom: 10px;
-    }
-
-    .empty-hint {
-      font-size: 14px;
-      color: #666;
-    }
-
-    .empty-hint a {
-      color: #000000;
-      font-weight: 700;
-      text-decoration: none;
-      border-bottom: 1px solid #000000;
-    }
-
-    .empty-hint a:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 28px 40px; }
+    .intro { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; margin-top: 22px; }
+    .intro-title { font-size: 15px; font-weight: 500; margin-bottom: 8px; }
+    .intro-text { font-size: 13px; color: var(--dim); line-height: 1.8; }
+    .empty-icon { font-size: 26px; color: var(--faint); margin-bottom: 10px; }
+    .empty-text { font-size: 14px; color: var(--ink); margin-bottom: 6px; }
+    .empty-hint { font-size: 12.5px; color: var(--dim); }
+    .empty-hint a, .intro-text a { color: var(--blue); }
+    .nav-btn { font-size: 12.5px; color: var(--dim); }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div class="path">/file</div>
-      <div class="nav-buttons">
-        <a href="${escapeHtml(relLink(urlPath, '/'))}" class="nav-btn">首页</a>
-        <a href="${escapeHtml(relLink(urlPath, '/config'))}" class="nav-btn">配置</a>
-      </div>
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <div class="brand"><span class="dot ok"></span>u32-local-server<span class="ver">v${require('../package.json').version}</span></div>
+      <span class="addr">${config && config.port ? '127.0.0.1:' + config.port : ''}</span>
+      <nav class="nav">
+        <a href="${escapeHtml(relLink(urlPath, '/'))}">首页</a>
+        <a href="${escapeHtml(relLink(urlPath, '/status'))}">状态</a>
+        <a href="${escapeHtml(relLink(urlPath, '/config'))}">配置</a>
+        <span class="sep"></span>
+        <a href="${escapeHtml(relLink(urlPath, '/docs/file-access.md'))}" target="_blank" rel="noopener">文档 ↗</a>
+      </nav>
     </div>
+  </header>
+
+  <div class="container">
 
     <div class="intro">
       <div class="intro-title">
@@ -618,166 +328,41 @@ function renderErrorPage(code, title, filePath, reason, solution, pagePath) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${code} ${escapeHtml(title)}</title>
-  <link rel="stylesheet" href="${escapeHtml(relLink(pagePath || '/', '/public/css/space-grotesk.css'))}">
+  <link rel="stylesheet" href="${escapeHtml(relLink(pagePath || '/', '/public/css/base.css'))}">
   <link rel="stylesheet" href="${escapeHtml(relLink(pagePath || '/', '/public/css/all.min.css'))}">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #FFFFFF;
-      color: #000000;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-
-    .error-box {
-      border: 2px solid #000000;
-      padding: 30px;
-      margin-bottom: 30px;
-    }
-
-    .error-header {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-      margin-bottom: 20px;
-      padding-bottom: 20px;
-      border-bottom: 1px solid #E5E5E5;
-    }
-
-    .error-code {
-      font-size: 48px;
-      font-weight: 700;
-      color: #000000;
-      line-height: 1;
-    }
-
-    .error-title {
-      font-size: 24px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-    }
-
-    .path-label {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 10px;
-      color: #666;
-    }
-
-    .path {
-      background: #F5F5F5;
-      padding: 15px;
-      border: 1px solid #000000;
-      font-family: 'Space Grotesk', monospace;
-      font-size: 13px;
-      word-break: break-all;
-      margin-bottom: 20px;
-    }
-
-    .reason-label {
-      font-size: 13px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 10px;
-      color: #666;
-    }
-
-    .reason {
-      font-size: 14px;
-      line-height: 1.6;
-      color: #333;
-    }
-
-    .solution-box {
-      border: 1px solid #000000;
-      padding: 25px;
-    }
-
-    .solution-title {
-      font-size: 16px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .solution-list {
-      list-style: none;
-      padding: 0;
-    }
-
-    .solution-list li {
-      padding: 10px 0;
-      padding-left: 25px;
-      position: relative;
-      font-size: 14px;
-      line-height: 1.6;
-    }
-
-    .solution-list li:before {
-      content: "▸";
-      position: absolute;
-      left: 0;
-      font-weight: 700;
-      color: #000000;
-    }
-
-    .config-link {
-      margin-top: 20px;
-      font-size: 13px;
-    }
-
-    .config-link a {
-      color: #000000;
-      font-weight: 700;
-      text-decoration: none;
-      border-bottom: 1px solid #000000;
-    }
-
-    .config-link a:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border: 1px solid #000000;
-      text-decoration: none;
-      color: #000000;
-      font-weight: 700;
-      margin-top: 20px;
-      transition: all 0.2s;
-    }
-
-    .back-link:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; }
+    .container { max-width: 1140px; margin: 0 auto; padding: 0 28px 40px; }
+    .error-box, .solution-box { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 22px 24px; margin-top: 22px; }
+    .error-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+    .error-code { font-family: var(--mono); font-size: 22px; font-weight: 500; color: var(--red); }
+    .error-title { font-size: 15px; font-weight: 500; }
+    .path-label, .reason-label { font-size: 11.5px; color: var(--faint); margin-top: 12px; }
+    .path, .reason { font-size: 12.5px; color: var(--ink); word-break: break-all; margin-top: 3px; }
+    .path { font-family: var(--mono); }
+    .solution-title { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+    .solution-box { font-size: 13px; color: var(--dim); line-height: 1.8; }
+    .solution-box a, .config-link a { color: var(--blue); }
+    .back-link { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--dim); background: #fff; border: 1px solid var(--line-hi); border-radius: 8px; padding: 6px 12px; text-decoration: none; margin-top: 16px; }
+    .back-link:hover { color: var(--blue); border-color: var(--blue); background: var(--blue-soft); }
+    .config-link { margin-top: 14px; font-size: 12.5px; }
   </style>
 </head>
 <body>
+  <header class="topbar">
+    <div class="wrap topbar-in">
+      <div class="brand"><span class="dot ok"></span>u32-local-server<span class="ver">v${require('../package.json').version}</span></div>
+      <nav class="nav">
+        <a href="${escapeHtml(relLink(pagePath || '/', '/'))}">首页</a>
+        <a href="${escapeHtml(relLink(pagePath || '/', '/status'))}">状态</a>
+        <a href="${escapeHtml(relLink(pagePath || '/', '/config'))}">配置</a>
+        <span class="sep"></span>
+        <a href="${escapeHtml(relLink(pagePath || '/', '/docs/file-access.md'))}" target="_blank" rel="noopener">文档 ↗</a>
+      </nav>
+    </div>
+  </header>
+
   <div class="container">
     <div class="error-box">
       <div class="error-header">

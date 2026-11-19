@@ -219,7 +219,7 @@ function cardTable(id, title, columns, rows, extraClass, extraHtml) {
     '</section>'
 }
 
-function renderPage(snap) {
+function renderPage(snap, addr) {
   const flat = buildFlat(snap)
   const tables = buildTables(snap)
 
@@ -304,6 +304,7 @@ function renderPage(snap) {
         <span class="dot ok" id="live-dot"></span>u32-local-server
         <span class="ver">v${escapeHtml(PACKAGE_JSON.version)}</span>
       </div>
+      <span class="addr">${escapeHtml(addr || '')}</span>
       <nav class="nav">
         <a href="./">首页</a>
         <a class="active" href="./status">状态</a>
@@ -482,7 +483,7 @@ function serve(req, res, config, server) {
     return res.end('采集运行状态失败：' + e.message)
   }
   res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' })
-  res.end(renderPage(snap))
+  res.end(renderPage(snap, '127.0.0.1:' + config.port))
 }
 
 function serveApi(req, res, config, server) {

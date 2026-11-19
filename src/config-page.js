@@ -4,7 +4,7 @@ const fs = require('fs')
 const { escapeHtml } = require('./utils')
 const PACKAGE_JSON = require('../package.json')
 
-function renderPage(config) {
+function renderPage(config, addr) {
   // 存储值即 resolvePath 后的绝对路径，直接展示，不做 ~ 反向转换
   const display = config
   const version = PACKAGE_JSON.version
@@ -36,7 +36,7 @@ function renderPage(config) {
   <style>
     /* 顶栏与内容左对齐：config 页内容窄于全局 .wrap，覆盖成同一栅格 */
     .topbar .wrap { max-width: 940px; }
-    .page { max-width: 940px; margin: 0 auto; padding: 28px 28px 20px; }
+    .page { max-width: 1140px; margin: 0 auto; padding: 28px 28px 20px; }
 
     .section { margin-bottom: 26px; }
     .section-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 500; color: var(--dim); }
@@ -127,6 +127,7 @@ function renderPage(config) {
 <header class="topbar">
   <div class="wrap topbar-in">
     <div class="brand"><span class="dot ok"></span>u32-local-server<span class="ver">v${version}</span></div>
+    <span class="addr">${addr || ''}</span>
     <nav class="nav">
       <a href="./">首页</a>
       <a href="./status">状态</a>
@@ -187,10 +188,16 @@ function renderPage(config) {
   </div>
 </main>
 
-<div class="foot-line">
-  <span>u32-local-server v${version} · MIT</span>
-  <div class="links"><a href="./">首页</a><a href="./status">状态</a><a href="./llms.txt">llms.txt</a></div>
-</div>
+<footer class="pagefoot">
+  <div class="wrap in">
+    <span>u32-local-server v${version} · MIT</span>
+    <div class="links">
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">文档站</a>
+      <a href="./llms.txt" target="_blank" rel="noopener">llms.txt</a>
+      <a href="https://github.com/u32-cn/u32-local-server" target="_blank" rel="noopener">GitHub</a>
+    </div>
+  </div>
+</footer>
 
 <div id="confirm-modal" class="modal-overlay" style="display:none">
   <div class="modal-box">
@@ -641,7 +648,7 @@ function serve(req, res) {
     'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
     'access-control-allow-headers': '*',
   })
-  res.end(renderPage(config))
+  res.end(renderPage(config, (req.headers && req.headers.host) || ''))
 }
 
 module.exports = { serve }
