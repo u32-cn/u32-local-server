@@ -39,12 +39,16 @@ u32-local-server 把这层授权移到服务端，一次配置、长期可用：
 - 🎨 **可视化配置** - Web 界面管理端口、允许列表/拒绝列表（只读/读写）、MIME 类型
 - 🚀 **开机自启** - 注册为系统服务（Windows 注册表 Run 键 / Linux systemd）
 - 📋 **右键菜单** - Windows 集成文件/文件夹右键菜单
+- 🖥️ **免 Node 安装包（仅 Windows）** - 单文件 exe 自带 Node 运行时，约 24MB 安装包，双击安装、不写 PATH、无需装 Node；macOS/Linux 无安装包，用 npm 版
+- 🔔 **系统托盘（Windows）** - 通知区域图标，按服务状态置灰/激活，右键启动/停止/查看网页/退出（查看网页不启动服务）
 - 📺 **目录浏览** - 美观的目录列表页面
 - 🔁 **反向代理友好** - 页面全部使用相对链接，可直接挂到 Nginx 子路径
 
 ## 快速开始
 
 ### 安装
+
+**按系统选方案**：Windows 优先用下方的免 Node 安装包（双击即装、无需 Node）；macOS / Linux 没有安装包，用 npm 安装。
 
 ```bash
 npm install -g u32-local-server
@@ -53,6 +57,15 @@ npm install -g u32-local-server
 要求 Node.js >= 18。
 
 > **注意确认 npm 属于你自己的环境**：`npm i -g` 必须落到你自己的 npm 全局目录。若在 AI 工具（WorkBuddy / Cursor 等）的托管终端里执行，`npm` 可能指向该工具自带的 node 运行时（prefix 形如 `C:\Users\<你>\.workbuddy\binaries\node\versions\<版本>-<构建>`），装在那里只有该工具会话能用，你自己的终端、资源管理器、计划任务都会 `u32-ls: command not found`。装前先跑 `npm config get prefix` 确认；落点不对就用系统 node 的 npm 显式安装：`"C:\Program Files\nodejs\npm.cmd" i -g u32-local-server`。
+
+**Windows 免 Node 方案**：从 [GitHub Releases](https://github.com/u32-cn/u32-local-server/releases/latest) 下载 `u32-local-server-setup-<版本>.exe` 双击安装。exe 用 Node SEA 把源码与运行时打成单文件，自带 Node，目标机器无需装 Node。
+
+- 装到 `%LOCALAPPDATA%\Programs\u32-local-server`（用户目录，`lowest` 权限，不弹 UAC）；**不写 PATH**
+- 开始菜单**唯一** `u32-local-server` 快捷方式，点击执行 `u32-ls launch`：启动服务 + 拉起托盘（幂等，重复点不会起第二份）
+- 安装时自动 `register`（HKCU 开机自启 + 右键菜单）并 `launch`；托盘图标按服务状态切换：运行中=红 LS、未运行=灰 LS，右键启动/停止/查看网页/退出，查看网页只开浏览器不启动服务
+- 安装包约 24MB（exe 本体 ~85MB，Inno Setup LZMA2 压缩）；服务端功能与 npm 版完全一致
+- exe 未签名，首次运行 SmartScreen 可能提示，选「仍要运行」
+- 详见 [docs/readme/installation.md](docs/readme/installation.md)
 
 ### 启动服务器
 
@@ -346,6 +359,7 @@ location / {
 
 | 命令 | 说明 |
 |---|---|
+| `u32-ls launch` | 启动服务 + 托盘图标（幂等；安装包快捷方式入口。Linux/macOS 等同 `start`）|
 | `u32-ls start` | 启动后台服务器 |
 | `u32-ls stop` | 停止服务器 |
 | `u32-ls restart` | 重启服务器 |
@@ -356,6 +370,7 @@ location / {
 | `u32-ls copy-url <path>` | 复制 URL 到剪贴板 |
 | `u32-ls register` | 注册开机自启 + 右键菜单 |
 | `u32-ls unregister` | 取消注册 |
+| `u32-ls tray` | 启动 Windows 系统托盘图标（仅 Windows；按服务状态置灰/激活）|
 | `u32-ls clear-artifacts` | 清空浏览器桥临时产物（不经 init，独立完成清空并汇报） |
 | `u32-ls version` | 显示版本号 |
 | `u32-ls --help` | 显示帮助信息 |
@@ -375,6 +390,8 @@ location / {
   - 「复制 URL」- 复制文件夹的访问 URL
 - **文件夹背景右键**:
   - 「在浏览器中打开当前目录」- 快速打开当前文件夹
+
+**系统托盘**（免 Node 安装包）：通知区域常驻图标，运行中=红 LS / 未运行=灰 LS（每 1.5s 探测端口自动切换）。右键菜单：启动服务 / 停止服务 / 查看网页 / 退出；左键双击 = 查看网页。「查看网页」只调默认浏览器打开首页，不会启动服务。
 
 ### Linux
 
@@ -417,11 +434,12 @@ location / {
 
 ## 技术架构
 
-- **纯 Node.js** - 零依赖，无第三方包，只用内置模块
+- **纯 Node.js** - 运行期零依赖，无第三方包，只用内置模块（构建期唯一 devDependency 是 `postject`，仅用于 SEA 注入，不进运行包）
 - **HTTP 服务器** - 原生 `http` 模块
 - **路径处理** - 统一 POSIX 路径，自动识别 Windows 盘符和 `~/`
 - **MIME 类型** - 内置 60+ 文件类型（文本/图片/视频/音频/文档/压缩包/3D 模型/字体）
 - **跨平台** - Windows（taskkill/VBS/注册表）与 Linux（信号/systemd）双支持
+- **免 Node 打包** - Node SEA（单可执行应用）+ Inno Setup LZMA2 安装包，仅 Windows；托盘用系统自带 PowerShell + .NET NotifyIcon + wscript，无第三方运行时
 
 ## 开发
 
@@ -454,8 +472,8 @@ node test/bridge.test.js  # 默认打 http://127.0.0.1:19527，可传自定义 b
 ### 架构
 
 ```
-src/index.js          # 入口：命令分发（start/stop/restart/status/logs/url/open/copy-url/
-                      #       register/unregister/clear-artifacts/version/help）+ startServer()
+src/index.js          # 入口：命令分发（launch/start/stop/restart/status/logs/url/open/copy-url/
+                      #       register/unregister/tray/clear-artifacts/version/help）+ startServer()
 src/router.js         # 服务器路由分发；POST 写接口同源 Origin 校验防 CSRF；请求指标钩子
 src/config.js         # 配置读写（~/.u32-local-server/config/main.json），旧格式自动迁移
 src/permission.js     # 权限校验：isAllowed / isWritable，deny 优先于 allow，allow 空=拒绝所有
@@ -475,15 +493,25 @@ src/picker.js         # 选择器入口（仅委托）→ src/picker/ 目录：
                       #   style.css Win10 配色 / icons.svg 图标雪碧图 / client/*.js 前端逻辑
 src/daemon.js         # start/stop/restart/status/logs 守护进程管理
                       #   Windows: taskkill + VBS；Linux: spawn + PID 文件
+src/sea-assets.js     # 资源读取抽象：SEA 模式走 sea.getAsset，node 直跑走磁盘
+src/cmd-launch.js     # launch：启动服务 + 托盘（均幂等），安装包快捷方式入口
+src/cmd-tray.js       # tray：释放嵌入的 ps1/双 ICO 到 runtime，经 wscript 拉起托盘
 src/file-logger.js    # 文件日志 + 2MB 轮转（保留 10 个历史文件）
 src/logger.js         # 双输出日志（控制台 + 文件）
 src/tail-util.js      # tail -f 实现
 src/cmd-service.js    # register/unregister：注册表 Run 键自启 + 右键菜单 + 动态生成 VBS
+scripts/build-sea.js  # SEA 打包：bundle 源码 + 嵌入静态资源 → dist/u32-ls.exe
+scripts/build-icon.js # 零依赖从点阵生成 ls.ico（红/激活）与 ls-gray.ico（灰/未运行）
+scripts/installer.iss # Inno Setup：产出 u32-local-server-setup-<版本>.exe
+scripts/tray.ps1      # Windows 托盘助手（PowerShell NotifyIcon，端口探测切图标）
+resources/            # ls.svg 源图 + ls.ico / ls-gray.ico 两态托盘图标
 ```
 
 ### 启动 / 停止流程
 
 启动：`u32-ls start` → daemon.js spawn 子进程（同入口、不带命令参数）→ 子进程落到 `startServer()`：加载配置 → 创建 HTTP 服务器 → 注册路由 → 监听端口 → listen 成功回调中写 PID 文件（PID 文件唯一写入者）。
+
+`u32-ls launch`（安装包快捷方式入口）= 探 PID 文件，服务未运行则走上述 start 流程；Windows 再经 `cmd-tray.js` 用 wscript 拉起 `tray.ps1`。托盘写 `runtime/tray.lock` 记录自身 PID，`launch` 与安装 `[Run]` 重复触发时幂等跳过。托盘每 1.5s TCP 探测端口切图标；菜单「查看网页」直接开浏览器不碰服务，「退出」结束托盘进程。
 
 停止：`u32-ls stop` → 读 PID 文件 → Windows `taskkill /PID xxx /T /F` / Linux `process.kill(pid, SIGTERM)` → 删 PID 文件。
 
@@ -496,6 +524,7 @@ src/cmd-service.js    # register/unregister：注册表 Run 键自启 + 右键�
 3. 提交 `chore(release): vX.Y.Z——<改动摘要>`
 4. 打 tag `vX.Y.Z` 并推送
 5. `npm publish`（`publishConfig` 已指向 npmjs.org；`files` 白名单含 `src/`、`public/`、`docs/readme/`、`docs/llms.txt`、`docs/index.html`、`docs/reader.html`、`docs/assets/`、`package.json`、`README.md`、`CHANGELOG.md`；`test/`、`LICENSE` 不进 npm 包）
+6. **Windows 免 Node 包（自动）**：推送 tag 即自动构建并发 GitHub Release——`.github/workflows/release.yml` 在 `windows-latest` runner 上跑 icon/SEA/Inno 全链路（tag 与 `package.json` version 不一致会 fail；Release notes 取 CHANGELOG 对应版本段），产物挂 `https://github.com/u32-cn/u32-local-server/releases/latest`。**只需 `git push <remote> vX.Y.Z`，本地无需打包**；手动打包流程保留备用：`node scripts/build-icon.js` → `node scripts/build-sea.js`（产出 `dist/u32-ls.exe`）→ `ISCC.exe scripts/installer.iss`。SEA 不支持交叉编译；**仅提供 Windows 免 Node 包；Linux/macOS 不出安装包，用 npm 安装（Node.js ≥ 18）**
 
 ### 相关文档
 

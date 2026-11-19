@@ -1,6 +1,11 @@
 # 安装（u32-local-server）
 
-本文是安装的唯一权威文档。安装目标：把 `u32-local-server` 装成 npm 全局包（提供 `u32-ls` 命令）。
+本文是安装的唯一权威文档。安装目标：把 `u32-local-server` 装到本机（提供 `u32-ls` 命令）。
+
+## 按系统选方案（先看这里）
+
+- **Windows**：优先用免 Node 安装包，见下方 [免 Node 安装包（Windows）](#免-node-安装包windows)。自带运行时，双击即装，无需装 Node。
+- **macOS / Linux**：**没有安装包**，只能用下方的 npm 安装（需 Node.js ≥ 18）。不要找 .dmg / .pkg / .deb / AppImage，本项目不出这些包。
 
 ## 前置
 
@@ -43,7 +48,9 @@ npm config get prefix
 
 ## 免 Node 安装包（Windows）
 
-不需要装 Node，直接下载 `u32-local-server-setup-<版本>.exe` 双击安装。
+不需要装 Node，直接从 GitHub Releases 下载安装包双击安装：
+
+- 最新版：<https://github.com/u32-cn/u32-local-server/releases/latest>（资产名 `u32-local-server-setup-<版本>.exe`）
 
 - 安装内容：单文件 `u32-ls.exe`（Node SEA，自带运行时），默认装到 `%LOCALAPPDATA%\Programs\u32-local-server`（用户目录，不弹 UAC）
 - **不写 PATH**。开始菜单**只有一个** `u32-local-server` 快捷方式，点击执行 `u32-ls launch`：启动服务 + 拉起托盘（两者幂等，重复点不会起第二份）
@@ -54,4 +61,4 @@ npm config get prefix
 - 安装包约 24MB（exe 本体 84.8MB，Inno Setup LZMA2 压缩）；服务端功能与 npm 版完全一致
 - 注意：exe 未做代码签名，首次运行 Windows SmartScreen 可能提示，选择「仍要运行」
 
-> 维护者构建：`node scripts/build-icon.js` → `node scripts/build-sea.js` → `ISCC.exe scripts/installer.iss`。SEA 不支持交叉编译，各平台需在本平台构建；目前仅 Windows 安装包落地。
+> 维护者构建：`node scripts/build-icon.js` → `node scripts/build-sea.js` → `ISCC.exe scripts/installer.iss`。SEA 不支持交叉编译；本项目**只出 Windows 安装包**，macOS/Linux 不出包、用 npm 安装。

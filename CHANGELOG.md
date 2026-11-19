@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1] - 2026-11-19
+
+### Docs
+- 📝 明确安装方案按系统选择：Windows 优先免 Node 安装包，macOS/Linux 不出安装包、只用 npm 安装。同步 README、安装文档、`llms.txt`、文档站「让 AI 帮我安装」提示词及发版流程说明
+- 📝 免 Node 安装包落地 GitHub Releases 下载链接（releases/latest），文档各处「下载 exe」补真实入口
+- 📦 新增 `.github/workflows/release.yml`：push `v*.*.*` tag 自动在 Windows runner 构建安装包（icon → SEA → Inno Setup）并创建 GitHub Release 上传 exe；tag 与 `package.json` version 不一致时构建失败；Release notes 自动取 CHANGELOG 对应版本段。本地手动打包流程保留备用
+
 ## [1.7.0] - 2026-11-19
 
 ### Changed
@@ -37,6 +44,7 @@ All notable changes to this project will be documented in this file.
 - 🔧 `/proxy/` 与 `/picker-demo` 去掉 FontAwesome 按钮图标与 `space-grotesk.css` 引用，表单 / 按钮改用 base.css 基准
 
 ### Docs
+- 📝 明确安装方案按系统选择：Windows 优先免 Node 安装包，macOS/Linux 不出安装包、只用 npm 安装。同步 README、安装文档、`llms.txt`、文档站「让 AI 帮我安装」提示词及发版流程说明
 - 📝 文档体系深度整理（Diátaxis 分类：教程/指南/参考/解释，每条知识只留一个权威源）：
   - 新增 `docs/readme/installation.md`（安装唯一权威文档：前置、npm 落点检查、自检、误装清理）与 `docs/readme/getting-started.md`（启动、≥5 分钟验证标准、AI 托管会话回收陷阱与计划任务方案、首次 403 解除、30 秒上手）；原 llms.txt 内两处重复的安装/回收警示块与 PowerShell 脚本副本迁出合并
   - `docs/llms.txt` 重写为「产品简介 → 核心特色 → 安装摘要 → 启动摘要 → 功能文档索引（12 篇全，新增收录 bridge-connection-lifecycle，补 installation/getting-started）→ 全局约定」，正文细节全部改为链接到对应文档

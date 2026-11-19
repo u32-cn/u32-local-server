@@ -4,7 +4,7 @@
 
 ## 硬性禁令
 
-1. **零依赖**：禁止引入任何第三方 npm 包，只用 Node.js 内置模块
+1. **零依赖**：运行期禁止引入任何第三方 npm 包，只用 Node.js 内置模块。唯一例外是构建期 devDependency `postject`（SEA 注入 blob 用），它不进运行包；不得新增其他 npm 依赖
 2. **跨平台**：所有改动必须兼容 Windows 与 Linux；路径统一 POSIX 风格（`/` 分隔符，Windows 盘符 `C:\path` → `/C:/path`）
 3. **权限不变式**：`deny` 优先于 `allow`；`allow` 为空 = 拒绝所有。任何改动不得破坏该模型
 4. **MIME 优先级**：配置 `file.mime` 覆盖内置默认值，不得反转
@@ -33,6 +33,31 @@
 ### 端口占用
 
 端口 `19527` 被占用时**不要改项目配置**，报给用户处理。
+
+## Windows 免 Node 包纪律（SEA + Inno Setup）
+
+事实性内容见 README「免 Node 安装包」「发版流程」，此处只记 AI 必须遵守的坑。
+
+**打包**
+- 新增静态资源目录/文件必须同步 `scripts/build-sea.js` 的 `ASSET_DIRS`（或显式文件列表）；key 统一 POSIX 相对路径且与 `src/sea-assets.js` 的 `assetKey()` 对齐，否则 SEA 下 404 而 node 直跑正常（最难查的一类 bug）
+- `src/picker/client/*.js` 是浏览器端 ES 模块，**禁止**进 Node bundle；`build-sea.js` 已排除 `src/picker/client`
+- `postject` 的 `inject()` 真实签名是 `inject(filename, resourceName, resourceData, options)`。资源名是 `NODE_SEA_BLOB`，但 Windows 官方 node.exe 的 fuse 字节是 `NODE_SEA_FUSE_fce680ab2cc467b6e072b8b5df1996b2`——`sentinelFuse` 必须传这个长 fuse 名，`inject` 才找得到并翻转标志位；写成 `NODE_SEA_BLOB` 或 postject 默认的 `POSTJECT_SENTINEL_*` 都会静默失败（exe 能生成但 SEA 不生效）
+- SEA 不支持交叉编译，各平台包须在本平台构建；目前只有 Windows 包
+- 重建 exe 前**先停托盘与服务进程**（`taskkill` u32-ls.exe + 结束跑 `tray.ps1` 的 powershell），否则 `EBUSY: resource busy or locked, copyfile ... node.exe`
+- 本机 Inno Setup 装在 `.vtxf/tools/inno6/ISCC.exe`（`.vtxf/` 已 gitignore）；语言文件用英文名 `Default.isl`（`ChineseSimplified.isl` 本机发行版没有）
+
+**托盘（Windows-only）**
+- VBS `ws.Run` 的命令行必须**整体包一层引号**，内部每个双引号写成 `""`（`cmdLine.replace(/"/g, '""')`）；否则 `"exe" -arg` 被解析成字符串+裸标识符，报 `800A0401 语句未结束`
+- VBS 路径反斜杠不是转义符，**禁止**用 `JSON.stringify` 拼路径（会双写 `\`）
+- `scripts/tray.ps1` 由 `cmd-tray.js` 写 UTF-8 **BOM** 再交给 PowerShell 5.1；无 BOM 时中文注释按 ANSI 解码乱码、直接语法错误退出。VBS 启动器写 UTF-16LE + BOM
+- node 直接 `spawn('powershell.exe')` 拉托盘在托管会话里会被静默回收；改用 `wscript.exe` 跑启动器 VBS（`register` 已验证此方式能常驻）
+- 托盘进程靠 `~/.u32-local-server/runtime/tray.lock`（存 PID）互斥；`launch` 与安装 `[Run]` 都会触发 tray，必须幂等
+- 「查看网页」只能 `Start-Process <url>`，**不得**调 `u32-ls open`——`cmd-open.js` 会自动启动服务，违背「没开服务就打不开」的约定
+
+**安装器**
+- 用 `{userpf}`（`%LOCALAPPDATA%\Programs`）+ `PrivilegesRequired=lowest`，不弹 UAC；**不写 PATH**（含 HKCU），入口只靠开始菜单快捷方式
+- 快捷方式改名/合并后，旧 `.lnk` 不会自动消失，须在 `[InstallDelete]` 显式删除历史名称
+- 单快捷方式指向 `launch`；`[Run]` 里 `register` + `launch` 分两行
 
 ## 审批要求
 

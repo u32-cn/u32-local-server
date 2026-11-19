@@ -1,0 +1,104 @@
+# 发版自动化：push 形如 v*.*.* 的 tag → 构建 Windows 免 Node 安装包 → 创建 GitHub Release 并上传
+# 产物固定可下载地址：https://github.com/<owner>/<repo>/releases/latest/download/u32-local-server-setup-<版本>.exe
+# SEA 不支持交叉编译，runner 用的就是 windows-latest（Windows 本平台构建）
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write   # 创建 Release 与上传资产需要写权限
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      # tag 必须与 package.json version 一致（v1.7.1 ↔ 1.7.1），不一致直接失败
+      - name: Verify tag matches package version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $pkgVersion = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          if ($tag -ne "v$pkgVersion") {
+            Write-Error "tag '$tag' 与 package.json version '$pkgVersion' 不一致"
+            exit 1
+          }
+          Write-Host "版本校验通过：$tag == v$pkgVersion"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build icons
+        run: node scripts/build-icon.js
+
+      - name: Build SEA executable
+        run: node scripts/build-sea.js
+
+      # 本地构建用 .vtxf/tools/inno6（gitignore，不在 runner 上）；choco 装 Inno Setup 6，ISCC 在 PATH
+      - name: Install Inno Setup
+        run: choco install innosetup --noprogress -y
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { $iscc = "ISCC.exe" }
+          & $iscc scripts/installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Get-ChildItem dist
+
+      # installer.iss 的 AppVersion 是写死的，校验产物文件名与 tag 对齐，防止未来忘改
+      - name: Verify installer exists
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $exe = "dist/u32-local-server-setup-$($tag.TrimStart('v')).exe"
+          if (-not (Test-Path $exe)) {
+            Write-Error "未找到安装包 $exe"
+            exit 1
+          }
+          Write-Host "安装包就绪：$exe"
+
+      # Release notes 取 CHANGELOG 中该版本段（## [X.Y.Z] 到下一个 ## 之间）
+      - name: Extract release notes
+        id: notes
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $lines = Get-Content CHANGELOG.md
+          $start = -1; $end = -1
+          for ($i = 0; $i -lt $lines.Count; $i++) {
+            if ($start -lt 0 -and $lines[$i] -match "^## \[$version\]") { $start = $i; continue }
+            if ($start -ge 0 -and $i -gt $start -and $lines[$i] -match '^## \[') { $end = $i; break }
+          }
+          if ($start -lt 0) { Write-Error "CHANGELOG 中找不到 [$version] 段"; exit 1 }
+          if ($end -lt 0) { $end = $lines.Count }
+          $notes = ($lines[($start + 1)..($end - 1)] -join "`n").Trim()
+          $notes | Out-File -FilePath release-notes.md -Encoding utf8
+          Write-Host "----- release notes -----"
+          Write-Host $notes
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $exe = "dist/u32-local-server-setup-$($tag.TrimStart('v')).exe"
+          gh release create $tag $exe `
+            --repo "${{ github.repository }}" `
+            --title $tag `
+            --notes-file release-notes.md `
+            --latest
