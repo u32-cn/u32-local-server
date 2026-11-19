@@ -35,6 +35,7 @@ if (cmd === '-h' || cmd === '--help' || cmd === 'help') {
 Usage: u32-ls <command>
 
 Commands:
+  launch           Start service + tray (idempotent)       启动服务+托盘（幂等，快捷方式入口）
   start            Start the background server              启动后台服务器
   stop             Stop the server                          停止服务器
   restart          Restart the server                       重启服务器
@@ -45,6 +46,7 @@ Commands:
   copy-url <path>  Copy URL to clipboard                    复制URL到剪贴板
   register         Register auto-start service              注册开机自启动服务（Windows添加右键菜单）
   unregister       Unregister auto-start service            取消注册开机自启动服务
+  tray             Start Windows system tray icon          启动系统托盘图标（仅 Windows）
   version, -v, --version  Show version number               显示版本号
 
 Logs Options:
@@ -89,6 +91,20 @@ if (cmd === 'register' || cmd === 'unregister') {
 if (cmd === 'clear-artifacts') {
   // 手动清空桥产物临时目录（第三层清空：用户随时可清；路径自带 tmp/ 临时语义）
   require('./artifacts').clearFromCli()
+  return
+}
+
+if (cmd === 'launch') {
+  // 单入口：启动服务 + 拉起托盘（均幂等），安装包唯一快捷方式调用
+  const { run } = require('./cmd-launch')
+  run()
+  return
+}
+
+if (cmd === 'tray') {
+  // Windows 系统托盘助手（仅 Windows 生效；node/SEA 共用）
+  const { run } = require('./cmd-tray')
+  run()
   return
 }
 

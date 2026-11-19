@@ -22,11 +22,10 @@ u32-local-server 是一个跑在本机（127.0.0.1）的 HTTP 服务，为两类
 
 ## 安装
 
-三步（详细说明与陷阱排查见 [安装文档](/docs/installation.md)）：
+两种安装方式（详细说明与陷阱排查见 [安装文档](/docs/installation.md)）：
 
-1. 确认 Node.js ≥ 18
-2. `npm config get prefix` 确认 npm 不属于 AI 工具私有运行时，然后 `npm i -g u32-local-server`
-3. **新开普通终端**跑 `u32-ls -v` 有输出才算装好
+- **免 Node（Windows）**：下载 `u32-local-server-setup-<版本>.exe` 双击安装，自带运行时，不写 PATH；开始菜单**唯一** `u32-local-server` 快捷方式点击即启动服务+托盘（幂等），安装即自动运行；托盘图标按服务状态置灰/激活，右键启动/停止/查看网页（只开浏览器不启动服务）/退出，约 24MB
+- **npm 包**：确认 Node.js ≥ 18 → `npm config get prefix` 确认不属于 AI 工具私有运行时 → `npm i -g u32-local-server` → **新开普通终端**跑 `u32-ls -v` 有输出才算装好
 
 ## 启动
 
@@ -45,7 +44,7 @@ u32-local-server 是一个跑在本机（127.0.0.1）的 HTTP 服务，为两类
 - [启动与上手](/docs/getting-started.md) - 启动、验证、AI 托管会话回收陷阱与计划任务方案、首次 403 解除、30 秒上手
 - [安装](/docs/installation.md) - 安装唯一权威文档：前置、npm 落点检查（AI 工具私有运行时陷阱）、自检、误装清理
 - [首页 /](/docs/home.md) - 控制台页：状态带（运行时长/允许路径/桥在线/临时产物占用）、六宫格入口、开机自启与右键菜单的**真实注册状态**（含一键注册/取消）、临时产物清理、AI 指令与常用命令折叠区；`GET /api/summary` 返回同源摘要（只含计数与布尔），`GET /api/service-status` 返回注册状态，`POST /api/service` 触发注册/取消（真实结果需轮询 service-status，`accepted` 不代表已生效）
-- [命令行 u32-ls](/docs/cli.md) - start/stop/restart/status/logs/url/open/copy-url/register/unregister/clear-artifacts 等全部命令与文件位置
+- [命令行 u32-ls](/docs/cli.md) - launch（启动服务+托盘，快捷方式入口）/start/stop/restart/status/logs/url/open/copy-url/register/unregister/tray（Windows 系统托盘）/clear-artifacts 等全部命令与文件位置
 
 核心能力：
 

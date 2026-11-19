@@ -4,6 +4,7 @@ const path = require('path')
 const os = require('os')
 const { tail } = require('./tail-util')
 const { loadConfig } = require('./config')
+const { IS_SEA } = require('./sea-assets')
 
 const PID_FILE = path.join(os.homedir(), '.u32-local-server', 'server.pid')
 const LOG_DIR = path.join(os.homedir(), '.u32-local-server', 'logs')
@@ -43,7 +44,9 @@ function startServerInBackground() {
 
       // 子进程 stderr 直接追加进日志文件：启动失败的真实原因（如配置解析错误）可被用户查到
       const logFd = fs.openSync(logFile, 'a')
-      child = spawn(process.execPath, [process.argv[1]], {
+      // SEA 模式：argv = [exe, 'start', ...]；子进程须用 exe 且不带脚本路径
+      const childArgs = IS_SEA ? [] : [process.argv[1]]
+      child = spawn(process.execPath, childArgs, {
         detached: true,
         stdio: ['ignore', 'ignore', logFd],
         windowsHide: true

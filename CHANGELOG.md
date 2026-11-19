@@ -6,8 +6,18 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - 🔧 首页「接入 AI」区精简为一句话指令（读取 llms.txt 后汇报在线桥实例、能力及操控方式），移除原 6 条场景指令与说明文案，列表改单列
+- 🔔 托盘与快捷方式改为单入口：开始菜单只留一个 `u32-local-server`，点击执行新增的 `u32-ls launch`（启动服务+托盘，均幂等）；旧版双快捷方式安装时自动清理
+- 🔔 托盘图标按服务状态切换：运行中=激活（红 LS），未运行=置灰（灰 LS），每 1.5s 探测端口；`resources/ls-gray.ico` 由 `build-icon.js` 生成
+- 🔔 托盘「查看网页」只调默认浏览器打开首页，不再启动服务（服务没开就是打不开）；「退出托盘」更名「退出」
+
+### Fixed
+- 🐛 修复安装后托盘启动报错 `800A0401 语句未结束`：`cmd-tray.js` 生成 `ws.Run` 的 VBS 时未把命令行包裹为单个字符串，改为对内部双引号做 `""` 转义并整体包一层引号，安装即拉起托盘不再弹编译错误
 
 ### Added
+- 🔔 新增 Windows 系统托盘（`u32-ls tray`）：白底红字 LS 图标（`resources/ls.svg` → `build-icon.js` 生成 16/32px ICO，零依赖），右键菜单启动/停止/查看网页/退出托盘，左键双击打开网页；用 Windows 自带 PowerShell + .NET NotifyIcon 实现，脚本/图标从 SEA 嵌入资源释放到用户目录，由 wscript 拉起以避开会话进程回收
+- 📦 安装包**不再写 PATH**，改由开始菜单快捷方式进入（控制台 / 系统托盘），安装完自动拉起托盘图标
+- 📦 新增 Windows 免 Node 安装包：`node scripts/build-sea.js` 用 Node SEA 把源码与 `public/`、`docs/`、`src/picker/` 静态资源打包成单文件 `dist/u32-ls.exe`；`ISCC.exe scripts/installer.iss` 用 Inno Setup + LZMA2 产出约 24MB 的 `u32-local-server-setup-<版本>.exe`，安装即写入 PATH 并注册开机自启 / 右键菜单，卸载时自动清理
+- 🔧 新增 `src/sea-assets.js` 资源抽象层：SEA 模式经 `sea.getAsset()` 读嵌入资源，node 直跑模式仍走磁盘；`register` / `unregister` 生成的 VBS 与 systemd unit 在 SEA 下改为直接调用 exe，运行时脚本目录改到用户目录，兼容安装到 Program Files 的只读场景
 - ✨ 新增 `/picker-guide` 文件选择器引导页：三张模式卡片（打开文件 / 选择目录 / 另存为）各附 iframe 接入脚本与「试用」按钮，点击后以内置模态 iframe 窗口打开 /picker，选中结果实时显示在卡片下方；首页六宫格「文件选择器」入口改指向该引导页（/picker 与 /picker-demo 保持不变）
 - 📚 文档站纳入本地服务：新增 `/docs`（重定向）、`/docs/index.html`、`/docs/reader.html`、`/docs/assets/...`、`/docs/readme/<name>.md` 路由，离线环境下访问 `http://127.0.0.1:<port>/docs` 即可看到完整排版文档；`/docs/<name>.md` 旧直链兼容保留；各页面导航「文档 ↗」改指阅读页
 - ✨ 首页重做为一屏控制台：顶栏 → 状态带（运行时长 / 允许路径 / 桥在线 / 产物占用）→ 六宫格入口 → 运维行 → 折叠区（AI 指令 / 常用命令）。全页高度由约 3300px 降到一屏，移除「关于 / 功能特性 / 快速开始 / 命令参考」四块重复文案，产品介绍统一归文档站

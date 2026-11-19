@@ -36,5 +36,8 @@
     "package.json",
     "README.md",
     "CHANGELOG.md"
-  ]
+  ],
+  "devDependencies": {
+    "postject": "^1.0.0-alpha.6"
+  }
 }

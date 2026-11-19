@@ -6,6 +6,7 @@ npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。安装
 
 | 命令 | 说明 |
 |---|---|
+| `u32-ls launch` | 启动服务 + 托盘图标（幂等；安装包唯一快捷方式入口。Linux/macOS 等同 `start`） |
 | `u32-ls start` | 启动后台服务器（默认端口 19527，仅监听 127.0.0.1） |
 | `u32-ls stop` | 停止 |
 | `u32-ls restart` | 重启 |
@@ -16,6 +17,7 @@ npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。安装
 | `u32-ls copy-url <path>` | 复制 URL 到剪贴板 |
 | `u32-ls register` | 注册开机自启（Windows 另加右键菜单：在浏览器中打开/复制 URL） |
 | `u32-ls unregister` | 取消注册 |
+| `u32-ls tray` | 启动系统托盘图标（仅 Windows；右键菜单：启动/停止/查看网页/退出。图标按服务状态置灰/激活，查看网页只开浏览器不启动服务） |
 | `u32-ls clear-artifacts` | 清空浏览器桥临时产物目录（等效 `DELETE /bridge/api/artifacts`） |
 | `u32-ls version` / `-v` | 版本号 |
 | `u32-ls help` | 帮助（中英文对照） |

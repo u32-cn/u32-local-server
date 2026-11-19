@@ -40,3 +40,18 @@ npm config get prefix
 ## 误装清理
 
 若曾误装到 AI 工具私有运行时：确认用户侧那份可用后，卸掉工具私有那份（在该工具会话里 `npm un -g u32-local-server`），不留双份。
+
+## 免 Node 安装包（Windows）
+
+不需要装 Node，直接下载 `u32-local-server-setup-<版本>.exe` 双击安装。
+
+- 安装内容：单文件 `u32-ls.exe`（Node SEA，自带运行时），默认装到 `%LOCALAPPDATA%\Programs\u32-local-server`（用户目录，不弹 UAC）
+- **不写 PATH**。开始菜单**只有一个** `u32-local-server` 快捷方式，点击执行 `u32-ls launch`：启动服务 + 拉起托盘（两者幂等，重复点不会起第二份）
+- 安装时调用 `u32-ls register` 注册开机自启与右键菜单（HKCU），并执行 `launch` 立即启动服务与托盘；旧版双快捷方式会被安装器自动清理；卸载时 `u32-ls unregister` 清理注册表
+- 托盘图标右键菜单：**启动服务 / 停止服务 / 查看网页 / 退出**；左键双击 = 查看网页。「查看网页」只调默认浏览器打开首页，**不会启动服务**——服务没开就是打不开。「退出」结束托盘程序。
+- 托盘图标按服务状态切换：**服务运行中=激活**（白底红字 `LS`），**未运行=置灰**（灰字 `LS`），每 1.5s 探测端口自动更新。源文件 `resources/ls.svg`，托盘用 `resources/ls.ico` / `resources/ls-gray.ico`（16/32px）
+- 托盘为 **Windows-only**（PowerShell + .NET NotifyIcon，零第三方依赖）；Linux/macOS 用 `u32-ls start` + 浏览器
+- 安装包约 24MB（exe 本体 84.8MB，Inno Setup LZMA2 压缩）；服务端功能与 npm 版完全一致
+- 注意：exe 未做代码签名，首次运行 Windows SmartScreen 可能提示，选择「仍要运行」
+
+> 维护者构建：`node scripts/build-icon.js` → `node scripts/build-sea.js` → `ISCC.exe scripts/installer.iss`。SEA 不支持交叉编译，各平台需在本平台构建；目前仅 Windows 安装包落地。

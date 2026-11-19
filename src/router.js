@@ -1,7 +1,7 @@
 const logger = require('./logger')
-const fs = require('fs')
 const path = require('path')
 const { redirect } = require('./utils')
+const seaAssets = require('./sea-assets')
 const fsApi = require('./fs-api')
 const bridge = require('./bridge')
 const artifacts = require('./artifacts')
@@ -64,7 +64,6 @@ function sendJson(res, data, code) {
 }
 
 function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPageServe, bridgeStatusServe, pickerServe, pickerDemoServe, config) {
-  const publicDir = path.join(__dirname, '../public')
   artifacts.init(config, config.file && config.file.mime) // 桥产物存储：建目录+启动清空+定时清扫
   server.on('request', (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`)
@@ -107,10 +106,9 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     }
     if (url.pathname === '/llms.txt') {
       logger.debug(`[INFO] Routing to llms.txt\n`)
-      const llmsPath = path.join(__dirname, '../docs/llms.txt')
-      if (fs.existsSync(llmsPath)) {
-        let content = fs.readFileSync(llmsPath, 'utf8')
-        content = content.replace(/\{\{PORT\}\}/g, String(config.port))
+      let content = seaAssets.readAsset('docs/llms.txt', path.join(__dirname, '..'))
+      if (content !== null) {
+        content = content.toString('utf8').replace(/\{\{PORT\}\}/g, String(config.port))
         res.writeHead(200, { 
           'Content-Type': 'text/plain; charset=utf-8',
           'access-control-allow-origin': '*',
@@ -223,21 +221,22 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     if (url.pathname === '/docs/index.html' || url.pathname === '/docs/reader.html') {
       // 文档站页面（白名单固定两个 HTML，杜绝路径穿越）；
       // docs/ 同时是 GitHub Pages 站点源，本地伺服同一批文件，离线可用
-      const pagePath = path.join(__dirname, '..', 'docs', path.basename(url.pathname))
-      if (!fs.existsSync(pagePath) || !fs.statSync(pagePath).isFile()) {
+      const rel = path.join('docs', path.basename(url.pathname))
+      const content = seaAssets.readAsset(rel, path.join(__dirname, '..'))
+      if (content === null) {
         return sendPlain(res, 404, '404 Not Found')
       }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' })
-      return fs.createReadStream(pagePath).pipe(res)
+      return res.end(content)
     }
     if (url.pathname.startsWith('/docs/assets/')) {
       // 文档站静态资源（css/js/字体/marked vendor）
-      const assetsDir = path.join(__dirname, '..', 'docs', 'assets')
-      const reqPath = path.resolve(assetsDir, url.pathname.slice('/docs/assets/'.length))
-      if (!reqPath.startsWith(assetsDir + path.sep) || !fs.existsSync(reqPath) || !fs.statSync(reqPath).isFile()) {
+      const rel = path.join('docs', 'assets', url.pathname.slice('/docs/assets/'.length))
+      const content = seaAssets.readAsset(rel, path.join(__dirname, '..'))
+      if (content === null) {
         return sendPlain(res, 404, '404 Not Found')
       }
-      const ext = path.extname(reqPath).toLowerCase()
+      const ext = path.extname(rel).toLowerCase()
       const contentType = {
         '.css': 'text/css',
         '.js': 'application/javascript',
@@ -248,30 +247,36 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
         '.ttf': 'font/ttf',
       }[ext] || 'application/octet-stream'
       res.writeHead(200, { 'Content-Type': contentType })
-      return fs.createReadStream(reqPath).pipe(res)
+      return res.end(content)
     }
     if (url.pathname.startsWith('/docs/readme/')) {
       // 阅读页 reader.html 的 fetch 目标（Pages 站点同路径）：功能文档 docs/readme/*.md
       // 该目录同时是 GitHub Pages 站点的文档源，改一处两边生效，供 llms.txt 引用
-      const docPath = path.join(__dirname, '..', 'docs', 'readme', path.basename(url.pathname))
-      if (!docPath.endsWith('.md') || !fs.existsSync(docPath) || !fs.statSync(docPath).isFile()) {
+      const basename = path.basename(url.pathname)
+      if (!basename.endsWith('.md')) {
+        return sendPlain(res, 404, '404 Not Found')
+      }
+      const content = seaAssets.readAsset(path.join('docs', 'readme', basename), path.join(__dirname, '..'))
+      if (content === null) {
         return sendPlain(res, 404, '404 Not Found')
       }
       res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' })
-      return fs.createReadStream(docPath).pipe(res)
+      return res.end(content)
     }
     if (url.pathname.startsWith('/docs/') && url.pathname.endsWith('.md')) {
       // 兼容旧直链：/docs/<name>.md 映射到包内 docs/readme
-      const docPath = path.join(__dirname, '..', 'docs', 'readme', path.basename(url.pathname))
-      if (!fs.existsSync(docPath) || !fs.statSync(docPath).isFile()) {
+      const basename = path.basename(url.pathname)
+      const content = seaAssets.readAsset(path.join('docs', 'readme', basename), path.join(__dirname, '..'))
+      if (content === null) {
         return sendPlain(res, 404, '404 Not Found')
       }
       res.writeHead(200, { 'Content-Type': 'text/markdown; charset=utf-8' })
-      return fs.createReadStream(docPath).pipe(res)
+      return res.end(content)
     }
     if (url.pathname.startsWith('/public/')) {
-      const reqPath = path.join(publicDir, url.pathname.slice('/public/'.length))
-      if (!fs.existsSync(reqPath) || !fs.statSync(reqPath).isFile()) {
+      const rel = url.pathname.slice('/public/'.length)
+      const content = seaAssets.readAsset(path.join('public', rel), path.join(__dirname, '..'))
+      if (content === null) {
         res.writeHead(404, {
           'access-control-allow-origin': '*',
           'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
@@ -279,7 +284,7 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
         })
         return res.end('Not Found')
       }
-      const ext = path.extname(reqPath).toLowerCase()
+      const ext = path.extname(rel).toLowerCase()
       const contentType = {
         '.css': 'text/css',
         '.js': 'application/javascript',
@@ -289,13 +294,13 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
         '.woff': 'font/woff',
         '.ttf': 'font/ttf',
       }[ext] || 'application/octet-stream'
-      res.writeHead(200, { 
+      res.writeHead(200, {
         'Content-Type': contentType,
         'access-control-allow-origin': '*',
         'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
         'access-control-allow-headers': '*',
       })
-      return fs.createReadStream(reqPath).pipe(res)
+      return res.end(content)
     }
 
     logger.debug(`[INFO] Routing to file server handler\n`)
@@ -308,9 +313,13 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
 // 原实现 execSync('start cmd /c u32-ls register') 会静默失败却照样回 ok:true（假成功）
 function spawnServiceCommand(action) {
   const { spawn } = require('child_process')
-  const entry = path.join(__dirname, 'index.js')
-  const child = spawn(process.execPath, [entry, action], {
-    cwd: path.join(__dirname, '..'),
+  // SEA 模式：process.execPath 就是 u32-ls 本体，直接传 action
+  // node 模式：当前 node 运行时 + 包内入口脚本 + action
+  const args = seaAssets.IS_SEA
+    ? [action]
+    : [path.join(__dirname, 'index.js'), action]
+  const child = spawn(process.execPath, args, {
+    cwd: seaAssets.IS_SEA ? path.dirname(process.execPath) : path.join(__dirname, '..'),
     detached: true,
     stdio: 'ignore',
     windowsHide: true,

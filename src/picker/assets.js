@@ -3,9 +3,9 @@
 // picker 静态资源分发：/picker/style.css、/picker/icons.svg、/picker/client/*.js
 // 只服务固定白名单文件（不存在路径拼接，天然免疫目录穿越）；不缓存，改 CSS/JS 后刷新即生效
 
-const fs = require('fs')
 const path = require('path')
 const { CORS_HEADERS } = require('../utils')
+const seaAssets = require('../sea-assets')
 
 const PICKER_PREFIX = '/picker/'
 
@@ -31,13 +31,10 @@ function serve(req, res, url) {
     res.writeHead(404, Object.assign({ 'Content-Type': 'text/plain; charset=utf-8' }, CORS_HEADERS))
     return res.end('Not Found')
   }
-  const filePath = path.join(__dirname, rel)
-  let content
-  try {
-    content = fs.readFileSync(filePath)
-  } catch (err) {
+  const content = seaAssets.readAsset(path.join('src', 'picker', rel), path.join(__dirname, '..', '..'))
+  if (content === null) {
     res.writeHead(500, Object.assign({ 'Content-Type': 'text/plain; charset=utf-8' }, CORS_HEADERS))
-    return res.end('Asset read failed: ' + err.message)
+    return res.end('Asset read failed')
   }
   res.writeHead(200, Object.assign({
     'Content-Type': mime,

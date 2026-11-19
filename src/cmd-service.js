@@ -2,8 +2,13 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const { execSync } = require('child_process')
+const { IS_SEA } = require('./sea-assets')
 
-const PROJECT_DIR = path.resolve(__dirname, '..')
+// SEA 模式：可执行程序装在只读目录（如 Program Files），运行时脚本改放用户目录；
+// node 模式：保持原有仓库 runtime/ 约定不变
+const PROJECT_DIR = IS_SEA
+  ? path.join(os.homedir(), '.u32-local-server')
+  : path.resolve(__dirname, '..')
 const RUNTIME_DIR = path.join(PROJECT_DIR, 'runtime') // register 运行时生成物统一放 runtime/，不污染仓库根
 const VBS_NAME = 'u32-local-server-hidden.vbs'
 const OPEN_VBS_NAME = 'u32-local-server-open.vbs'
@@ -27,6 +32,15 @@ function getNodePath() {
   return process.execPath
 }
 
+// 命令行启动前缀：node 模式需要 "node" + "src/index.js"；SEA 模式直接执行 exe
+function getLaunchPrefix() {
+  if (IS_SEA) {
+    const q = JSON.stringify(process.execPath)
+    return { node: q, entry: '' }
+  }
+  return { node: JSON.stringify(getNodePath()), entry: JSON.stringify(getEntryPath()) }
+}
+
 // 从 npx 缓存运行时安装会被缓存清理带走，给出警告
 function warnIfNpxCache() {
   const p = PROJECT_DIR
@@ -41,11 +55,11 @@ function getVbsPath() {
 }
 
 function getVbsContent() {
-  const entryPath = getEntryPath()
-  const nodePath = getNodePath()
+  const { node, entry } = getLaunchPrefix()
+  const args = entry ? ` & ${entry}` : ''
   return `Set ws = CreateObject("Wscript.Shell")
 Dim nodeCmd
-nodeCmd = Chr(34) & "${nodePath}" & Chr(34) & " " & Chr(34) & "${entryPath}" & Chr(34) & " start"
+nodeCmd = ${node}${args} & " start"
 ws.Run nodeCmd, 0, False
 `
 }
@@ -55,8 +69,8 @@ function getOpenVbsPath() {
 }
 
 function getOpenVbsContent() {
-  const entryPath = getEntryPath()
-  const nodePath = getNodePath()
+  const { node, entry } = getLaunchPrefix()
+  const args = entry ? ` & ${entry}` : ''
   return `On Error Resume Next
 Set ws = CreateObject("Wscript.Shell")
 If WScript.Arguments.Count = 0 Then
@@ -64,7 +78,7 @@ If WScript.Arguments.Count = 0 Then
   WScript.Quit 1
 End If
 Dim nodeCmd
-nodeCmd = Chr(34) & "${nodePath}" & Chr(34) & " " & Chr(34) & "${entryPath}" & Chr(34) & " open " & Chr(34) & WScript.Arguments(0) & Chr(34)
+nodeCmd = ${node}${args} & " open " & Chr(34) & WScript.Arguments(0) & Chr(34)
 ws.Run nodeCmd, 0, False
 If Err.Number <> 0 Then
   ws.Popup "Error " & Err.Number & ": " & Err.Description & vbCrLf & "Command: " & nodeCmd, 5, "u32-ls Error", 16
@@ -77,17 +91,16 @@ function getCopyUrlVbsPath() {
 }
 
 function getCopyUrlVbsContent() {
-  const entryPath = getEntryPath()
-  const nodePath = getNodePath()
+  const { node, entry } = getLaunchPrefix()
+  const args = entry ? ` & ${entry}` : ''
   return `On Error Resume Next
 Set ws = CreateObject("Wscript.Shell")
 If WScript.Arguments.Count = 0 Then
   ws.Popup "No arguments provided", 3, "u32-ls Error", 16
   WScript.Quit 1
 End If
-Dim entryPath, nodeCmd
-entryPath = "${entryPath}"
-nodeCmd = Chr(34) & "${nodePath}" & Chr(34) & " " & Chr(34) & entryPath & Chr(34) & " copy-url " & Chr(34) & WScript.Arguments(0) & Chr(34)
+Dim nodeCmd
+nodeCmd = ${node}${args} & " copy-url " & Chr(34) & WScript.Arguments(0) & Chr(34)
 ws.Run nodeCmd, 0, True
 If Err.Number <> 0 Then
   ws.Popup "Error " & Err.Number & ": " & Err.Description & vbCrLf & "Command: " & nodeCmd, 5, "u32-ls Error", 16
@@ -229,8 +242,9 @@ function unsupportedMessage() {
 
 function getServiceContent() {
   const { username, home } = resolveTargetUser()
-  const nodePath = getNodePath()
-  const entryPath = getEntryPath()
+  const { node, entry } = getLaunchPrefix()
+  const execStart = entry ? `${node.replace(/"/g, '')} ${entry.replace(/"/g, '')} start` : `${node.replace(/"/g, '')} start`
+  const nodeDir = path.dirname(getNodePath())
   const pidFile = path.join(home, '.u32-local-server', 'server.pid')
   return `[Unit]
 Description=U32 Local Server
@@ -239,12 +253,12 @@ After=network.target
 [Service]
 Type=forking
 PIDFile=${pidFile}
-ExecStart="${nodePath}" "${entryPath}" start
+ExecStart=${execStart}
 Restart=on-failure
 RestartSec=3
 User=${username}
 Environment=HOME=${home}
-Environment=PATH=${path.dirname(nodePath)}:/usr/local/bin:/usr/bin:/bin
+Environment=PATH=${nodeDir}:/usr/local/bin:/usr/bin:/bin
 
 [Install]
 WantedBy=multi-user.target
@@ -264,7 +278,9 @@ function stopRunningInstance() {
   if (!pid) return
   try { process.kill(pid, 0) } catch { return } // 不在运行
   try {
-    execSync(`"${getNodePath()}" "${getEntryPath()}" stop`, { stdio: ['ignore', 'ignore', 'ignore'] })
+    const { node, entry } = getLaunchPrefix()
+    const stopCmd = entry ? `${node} ${entry} stop` : `${node} stop`
+    execSync(stopCmd, { stdio: ['ignore', 'ignore', 'ignore'] })
     process.stdout.write(`[CMD-SERVICE] Stopped manually started instance (PID ${pid})\n`)
   } catch {}
 }
