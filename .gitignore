@@ -17,3 +17,6 @@ runtime/
 CLAUDE.md.local
 # playwright-cli 在项目根写的会话日志与页面快照
 .playwright-cli/
+# 构建产物与依赖
+dist/
+node_modules/
