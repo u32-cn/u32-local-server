@@ -133,7 +133,8 @@ function renderPage(config, addr) {
       <a href="./status">状态</a>
       <a class="active" href="./config">配置</a>
       <span class="sep"></span>
-      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">文档 ↗</a>
+      <a href="./docs" target="_blank" rel="noopener">内网文档 ↗</a>
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">公网文档 ↗</a>
     </nav>
     <div style="display:flex;align-items:center;gap:8px">
       <span id="restart-notice" class="restart-notice" style="display:none">需要重启</span>
@@ -192,7 +193,8 @@ function renderPage(config, addr) {
   <div class="wrap in">
     <span>u32-local-server v${version} · MIT</span>
     <div class="links">
-      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">文档站</a>
+      <a href="./docs" target="_blank" rel="noopener">内网文档站</a>
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">公网文档站</a>
       <a href="./llms.txt" target="_blank" rel="noopener">llms.txt</a>
       <a href="https://github.com/u32-cn/u32-local-server" target="_blank" rel="noopener">GitHub</a>
     </div>

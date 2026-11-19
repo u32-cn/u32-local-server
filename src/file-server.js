@@ -159,7 +159,8 @@ function directoryListing(dirPath, urlPath, config) {
       <a href="${escapeHtml(relLink(urlPath, '/status'))}">状态</a>
       <a href="${escapeHtml(relLink(urlPath, '/config'))}">配置</a>
       <span class="sep"></span>
-      <a href="${escapeHtml(relLink(urlPath, '/docs/reader.html?doc=file-access'))}" target="_blank" rel="noopener">文档 ↗</a>
+      <a href="${escapeHtml(relLink(urlPath, '/docs'))}" target="_blank" rel="noopener">内网文档 ↗</a>
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">公网文档 ↗</a>
     </nav>
   </div>
 </header>
@@ -290,7 +291,8 @@ function renderAllowListPage(config, urlPath) {
         <a href="${escapeHtml(relLink(urlPath, '/status'))}">状态</a>
         <a href="${escapeHtml(relLink(urlPath, '/config'))}">配置</a>
         <span class="sep"></span>
-        <a href="${escapeHtml(relLink(urlPath, '/docs/reader.html?doc=file-access'))}" target="_blank" rel="noopener">文档 ↗</a>
+        <a href="${escapeHtml(relLink(urlPath, '/docs'))}" target="_blank" rel="noopener">内网文档 ↗</a>
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">公网文档 ↗</a>
       </nav>
     </div>
   </header>
@@ -358,7 +360,8 @@ function renderErrorPage(code, title, filePath, reason, solution, pagePath) {
         <a href="${escapeHtml(relLink(pagePath || '/', '/status'))}">状态</a>
         <a href="${escapeHtml(relLink(pagePath || '/', '/config'))}">配置</a>
         <span class="sep"></span>
-        <a href="${escapeHtml(relLink(pagePath || '/', '/docs/reader.html?doc=file-access'))}" target="_blank" rel="noopener">文档 ↗</a>
+        <a href="${escapeHtml(relLink(pagePath || '/', '/docs'))}" target="_blank" rel="noopener">内网文档 ↗</a>
+        <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">公网文档 ↗</a>
       </nav>
     </div>
   </header>
