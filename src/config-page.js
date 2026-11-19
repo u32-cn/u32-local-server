@@ -2,21 +2,27 @@ const { loadConfig, saveConfig, resolvePath } = require('./config')
 const logger = require('./logger')
 const fs = require('fs')
 const { escapeHtml } = require('./utils')
+const PACKAGE_JSON = require('../package.json')
 
 function renderPage(config) {
   // 存储值即 resolvePath 后的绝对路径，直接展示，不做 ~ 反向转换
   const display = config
+  const version = PACKAGE_JSON.version
+  const allowCount = display.file.access.allow.length
+  const denyCount = display.file.access.deny.length
+  const mimeEntries = Object.entries(display.file.mime || {}).sort((a, b) => a[0].localeCompare(b[0]))
+  const mimeCount = mimeEntries.length
+
   const allowHtml = display.file.access.allow.map(e => {
     const p = typeof e === 'string' ? e : e.path
     const writable = typeof e === 'string' ? true : e.write !== false
-    return `<div class="rule" data-type="allow" data-path="${escapeHtml(p)}" data-write="${writable}"><code>${escapeHtml(p)}</code><div class="rule-actions"><button class="mode-btn">${writable ? '读写' : '只读'}</button><button class="visit-btn"><i class="fas fa-external-link-alt"></i> 访问</button><button class="del-btn">删除</button></div></div>`
+    return `<div class="rule" data-type="allow" data-path="${escapeHtml(p)}" data-write="${writable}"><code>${escapeHtml(p)}</code><div class="rule-actions"><button class="mode-btn" type="button">${writable ? '读写' : '只读'}</button><button class="visit-btn" type="button">访问</button><button class="del-btn" type="button">删除</button></div></div>`
   }).join('')
   const denyHtml = display.file.access.deny.map(p =>
-    `<div class="rule" data-type="deny" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code><button class="del-btn">删除</button></div>`
+    `<div class="rule" data-type="deny" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code><div class="rule-actions"><button class="del-btn" type="button">删除</button></div></div>`
   ).join('')
-  const mimeEntries = Object.entries(display.file.mime || {}).sort((a, b) => a[0].localeCompare(b[0]))
   const mimeHtml = mimeEntries.map(([ext, type]) =>
-    `<div class="rule" data-type="mime" data-ext="${escapeHtml(ext)}"><code>${escapeHtml(ext)}</code><code>${escapeHtml(type)}</code><button class="del-btn">删除</button></div>`
+    `<div class="rule" data-type="mime" data-ext="${escapeHtml(ext)}"><code>${escapeHtml(ext)}</code><code>${escapeHtml(type)}</code><div class="rule-actions"><button class="del-btn" type="button">删除</button></div></div>`
   ).join('')
 
   return `<!DOCTYPE html>
@@ -24,468 +30,184 @@ function renderPage(config) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>u32-local-server config</title>
-  <link rel="stylesheet" href="./public/css/space-grotesk.css">
-  <link rel="stylesheet" href="./public/css/all.min.css">
+  <title>配置 - u32-local-server</title>
+  <link rel="icon" type="image/svg+xml" href="./public/favicon.svg">
+  <link rel="stylesheet" href="./public/css/base.css">
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    /* 顶栏与内容左对齐：config 页内容窄于全局 .wrap，覆盖成同一栅格 */
+    .topbar .wrap { max-width: 940px; }
+    .page { max-width: 940px; margin: 0 auto; padding: 28px 28px 20px; }
 
-    body {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #FFFFFF;
-      color: #000000;
-      line-height: 1.5;
-      font-size: 14px;
-    }
-
-    .container {
-      max-width: 1000px;
-      margin: 0 auto;
-      padding: 40px 20px;
-    }
-
-    .header {
-      border-bottom: 2px solid #000000;
-      padding-bottom: 20px;
-      margin-bottom: 40px;
-    }
-
-    .header-content {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .logo {
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
-      margin-bottom: 5px;
-    }
-
-    .tagline {
-      font-size: 13px;
-      color: #666;
-      font-weight: 400;
-    }
-
-    .restart-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-
-    .restart-btn:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .home-btn {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 8px 16px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      text-decoration: none;
-    }
-
-    .home-btn:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .restart-notice {
-      color: #DC2626;
-      font-weight: 700;
-      font-size: 13px;
-      margin-right: 15px;
-    }
-
-    .section {
-      margin-bottom: 50px;
-    }
-
-    .section-title {
-      font-size: 16px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 20px;
-      padding-bottom: 10px;
-      border-bottom: 1px solid #E5E5E5;
-    }
+    .section { margin-bottom: 26px; }
+    .section-title { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 13px; font-weight: 500; color: var(--dim); }
+    .section-title .cnt { font-size: 12px; font-weight: 400; color: var(--faint); }
+    .hint { margin-top: 8px; font-size: 12px; color: var(--faint); }
 
     .port-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 20px;
-      padding: 15px;
-      border: 1px solid #000000;
+      display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
     }
+    .port-row label { font-size: 12.5px; color: var(--dim); }
+    .port-row input[type="number"] { width: 110px; }
 
-    .port-row input[type="number"] {
-      padding: 8px 12px;
-      border: 1px solid #000000;
-      font-family: 'Space Grotesk', monospace;
-      font-size: 14px;
-      width: 100px;
-    }
-
-    .rule-list {
-      border: 1px solid #000000;
-      margin-bottom: 15px;
-    }
-
-    .rule {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 12px 15px;
-      border-bottom: 1px solid #E5E5E5;
-    }
-
-    .rule:last-child {
-      border-bottom: none;
-    }
-
-    .rule:hover {
-      background: #F5F5F5;
-    }
-
+    .rule-list { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+    .rule-list.scroll { max-height: 400px; overflow-y: auto; }
+    .rule { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #F2F2F5; }
+    .rule:last-child { border-bottom: none; }
+    .rule:hover { background: #FAFAFC; }
     .rule code {
-      flex: 1;
-      font-family: 'Space Grotesk', monospace;
-      background: #F5F5F5;
-      padding: 4px 8px;
-      font-size: 13px;
-      border: 1px solid #E5E5E5;
+      flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; color: var(--ink);
+      overflow-wrap: anywhere;
     }
+    /* MIME 行：扩展名列定宽，类型列吃掉剩余空间，避免两列各占一半把扩展名拉得很散 */
+    .rule[data-type="mime"] code:first-child { flex: 0 0 120px; }
+    .rule-actions { display: flex; gap: 6px; flex-shrink: 0; }
+    .rule-actions button {
+      font-family: inherit; font-size: 11.5px; font-weight: 500; color: var(--dim);
+      background: #fff; border: 1px solid var(--line-hi); border-radius: 7px; padding: 3px 9px; cursor: pointer;
+      transition: background .12s, border-color .12s, color .12s;
+    }
+    .rule-actions button:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
+    .rule-actions .del-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+    .empty { padding: 14px 16px; font-size: 12.5px; color: var(--faint); }
 
-    .rule-actions {
-      display: flex;
-      gap: 8px;
-    }
+    .add-row { display: flex; gap: 8px; margin-top: 10px; }
+    .add-row input[type="text"] { flex: 1; min-width: 0; }
+    .add-row input.ext { flex: 0 0 110px; }
 
-    .visit-btn {
-      padding: 8px 12px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
+    .restart-notice { font-size: 12.5px; font-weight: 500; color: var(--amber); background: var(--amber-soft); border-radius: var(--radius-pill); padding: 2px 10px; margin-right: 4px; }
 
-    .visit-btn:hover {
-      background: #000000;
-      color: #FFFFFF;
+    .foot-line {
+      max-width: 940px; margin: 0 auto; padding: 18px 28px 40px;
+      border-top: 1px solid var(--line);
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+      font-size: 12px; color: var(--faint);
     }
-
-    .add-row {
-      display: flex;
-      gap: 10px;
-      margin-top: 15px;
-    }
-
-    .add-row input {
-      flex: 1;
-      padding: 10px 12px;
-      border: 1px solid #000000;
-      font-family: 'Space Grotesk', monospace;
-      font-size: 14px;
-    }
-
-    button {
-      padding: 10px 20px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    button:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .rule button {
-      padding: 8px 12px;
-      font-size: 13px;
-    }
-
-    .empty {
-      padding: 12px 15px;
-      color: #999;
-      font-style: italic;
-    }
-
-    .back-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      padding: 10px 20px;
-      border: 1px solid #000000;
-      text-decoration: none;
-      color: #000000;
-      font-weight: 700;
-      margin-top: 30px;
-      transition: all 0.2s;
-    }
-
-    .back-link:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
-
-    .restart-page {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: #FFFFFF;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Space Grotesk', sans-serif;
-    }
-
-    .restart-content {
-      text-align: center;
-      max-width: 500px;
-      padding: 40px;
-    }
-
-    .restart-icon {
-      font-size: 64px;
-      margin-bottom: 20px;
-      color: #000000;
-    }
-
-    .restart-content h1 {
-      font-size: 24px;
-      font-weight: 700;
-      margin-bottom: 15px;
-    }
-
-    .restart-content p {
-      font-size: 16px;
-      color: #666;
-      margin-bottom: 10px;
-    }
-
-    .countdown {
-      font-size: 32px;
-      font-weight: 700;
-      color: #000000;
-      margin: 20px 0;
-    }
-
-    .new-url {
-      font-family: 'Space Grotesk', monospace;
-      background: #F5F5F5;
-      padding: 10px 15px;
-      border: 1px solid #E5E5E5;
-      display: inline-block;
-      margin: 20px 0;
-      font-size: 14px;
-      word-break: break-all;
-    }
-
-    .jump-btn {
-      padding: 12px 24px;
-      border: 1px solid #000000;
-      background: #FFFFFF;
-      color: #000000;
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 14px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .jump-btn:hover {
-      background: #000000;
-      color: #FFFFFF;
-    }
+    .foot-line .links { margin-left: auto; display: flex; gap: 16px; }
+    .foot-line a:hover { color: var(--blue); }
 
     .modal-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 1000;
+      position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+      background: rgba(17, 17, 20, .42); padding: 20px;
     }
-
-    .modal-box {
-      background: #FFFFFF;
-      border: 2px solid #000000;
-      max-width: 560px;
-      width: 90%;
-      padding: 30px;
-    }
-
-    .modal-box h3 {
-      font-size: 16px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 20px;
-    }
-
-    .modal-path-row {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .modal-path-row .arrow {
-      font-weight: 700;
-      flex: 0 0 auto;
-    }
-
+    .modal-box { width: 100%; max-width: 560px; padding: 24px; background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(17, 17, 20, .18); }
+    .modal-box h3 { margin: 0 0 16px; font-size: 15px; font-weight: 500; }
+    .modal-path-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12.5px; color: var(--dim); }
+    .modal-path-row .arrow { flex: 0 0 auto; }
     .modal-path-row code {
-      flex: 1;
-      font-family: 'Space Grotesk', monospace;
-      background: #F5F5F5;
-      padding: 8px 10px;
-      font-size: 13px;
-      border: 1px solid #E5E5E5;
-      word-break: break-all;
+      flex: 1; min-width: 0; padding: 8px 10px; word-break: break-all;
+      font-family: var(--mono); font-size: 12px; background: #FAFAFC; border: 1px solid var(--line); border-radius: 8px;
+    }
+    .modal-warning { margin: 12px 0; padding: 8px 12px; font-size: 12.5px; color: var(--amber); background: var(--amber-soft); border-radius: 8px; }
+    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+
+    .restart-page { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: var(--bg); }
+    .restart-content { max-width: 460px; padding: 32px; text-align: center; }
+    .restart-content h1 { margin: 0 0 8px; font-size: 19px; font-weight: 500; }
+    .restart-content p { margin: 0 0 6px; font-size: 13px; color: var(--dim); }
+    .countdown { margin: 18px 0; font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
+    .new-url {
+      display: block; margin: 16px 0; padding: 10px 14px; word-break: break-all;
+      font-family: var(--mono); font-size: 12.5px; color: var(--dim);
+      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm);
     }
 
-    .modal-warning {
-      color: #DC2626;
-      font-weight: 700;
-      font-size: 13px;
-      margin: 15px 0;
-    }
-
-    .modal-actions {
-      display: flex;
-      justify-content: flex-end;
-      gap: 10px;
-      margin-top: 20px;
+    @media (max-width: 700px) {
+      .page { padding: 20px 16px; }
+      .rule { flex-wrap: wrap; }
+      .rule code { flex: 1 0 100%; }
+      .add-row { flex-wrap: wrap; }
+      .add-row input[type="text"] { flex: 1 0 100%; }
+      .foot-line { padding: 18px 16px 32px; }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <div class="header-content">
-        <div>
-          <div class="logo">u32-local-server</div>
-          <div class="tagline">配置管理</div>
-        </div>
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <a href="./" class="home-btn"><i class="fas fa-home"></i> 首页</a>
-          <span id="restart-notice" class="restart-notice" style="display: none;">⚠️ 需要重启</span>
-          <button id="restart-btn" class="restart-btn" onclick="restartServer()">
-            <i class="fas fa-sync"></i> 重启
-          </button>
-        </div>
-      </div>
-    </header>
 
-    <div class="section">
-      <div class="section-title">服务器端口</div>
-      <div class="port-row">
-        <label>Port:</label>
-        <input type="number" id="port" value="${config.port}">
-        <button onclick="savePort()">保存</button>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">允许列表</div>
-      <div class="rule-list">
-        ${allowHtml || '<div class="empty">(空 = 拒绝所有文件访问)</div>'}
-      </div>
-      <div class="add-row">
-        <input type="text" id="add-allow" placeholder="e.g. ~/docs or D:/data (自动规范化为绝对路径，默认读写)">
-        <button onclick="addRule('allow')">添加</button>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">拒绝列表（优先级更高）</div>
-      <div class="rule-list">
-        ${denyHtml || '<div class="empty">(empty)</div>'}
-      </div>
-      <div class="add-row">
-        <input type="text" id="add-deny" placeholder="e.g. ~/secrets or C:/Windows (自动规范化为绝对路径)">
-        <button onclick="addRule('deny')">添加</button>
-      </div>
-    </div>
-
-    <div class="section">
-      <div class="section-title">MIME Types</div>
-      <div class="rule-list">
-        ${mimeHtml || '<div class="empty">(empty, using defaults)</div>'}
-      </div>
-      <div class="add-row">
-        <input type="text" id="add-mime-ext" placeholder=".ext" style="flex: 0.3;">
-        <input type="text" id="add-mime-type" placeholder="mime/type">
-        <button onclick="addMime()">添加</button>
-      </div>
-    </div>
-
-    <a href="./" class="back-link"><i class="fas fa-arrow-left"></i> 返回首页</a>
-  </div>
-
-  <div id="confirm-modal" class="modal-overlay" style="display:none">
-    <div class="modal-box">
-      <h3>确认添加路径</h3>
-      <div class="modal-path-row">
-        <span>输入</span><code id="modal-input"></code>
-      </div>
-      <div class="modal-path-row">
-        <span class="arrow">→ 将添加</span><code id="modal-resolved"></code>
-      </div>
-      <div id="modal-warn" class="modal-warning" style="display:none">⚠️ 该路径在服务器上不存在，仍可添加（前缀规则照常生效）</div>
-      <div class="modal-actions">
-        <button onclick="modalCancel()">取消</button>
-        <button onclick="modalConfirm()">确认添加</button>
-      </div>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <div class="brand"><span class="dot ok"></span>u32-local-server<span class="ver">v${version}</span></div>
+    <nav class="nav">
+      <a href="./">首页</a>
+      <a href="./status">状态</a>
+      <a class="active" href="./config">配置</a>
+      <span class="sep"></span>
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">文档 ↗</a>
+    </nav>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="restart-notice" class="restart-notice" style="display:none">需要重启</span>
+      <button id="restart-btn" class="btn btn-primary" type="button" onclick="restartServer()">重启服务</button>
     </div>
   </div>
+</header>
+
+<main class="page">
+  <div class="section">
+    <div class="section-title">服务器端口</div>
+    <div class="port-row">
+      <label for="port">端口</label>
+      <input type="number" id="port" value="${config.port}" min="1" max="65535">
+      <button class="btn" type="button" onclick="savePort()">保存</button>
+    </div>
+    <div class="hint">修改后需重启服务才生效；重启会中断当前所有连接。</div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">允许列表 <span class="cnt">${allowCount} 条</span></div>
+    <div class="rule-list">
+      ${allowHtml || '<div class="empty">空 = 拒绝所有文件访问</div>'}
+    </div>
+    <div class="add-row">
+      <input type="text" id="add-allow" placeholder="例如 ~/docs 或 D:/data（自动规范化为绝对路径，默认读写）">
+      <button class="btn" type="button" onclick="addRule('allow')">添加</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">拒绝列表 <span class="cnt">${denyCount} 条 · 优先级高于允许列表</span></div>
+    <div class="rule-list">
+      ${denyHtml || '<div class="empty">空</div>'}
+    </div>
+    <div class="add-row">
+      <input type="text" id="add-deny" placeholder="例如 ~/secrets 或 C:/Windows（自动规范化为绝对路径）">
+      <button class="btn" type="button" onclick="addRule('deny')">添加</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">MIME 类型 <span class="cnt">${mimeCount} 条 · 覆盖内置默认值</span></div>
+    <div class="rule-list scroll">
+      ${mimeHtml || '<div class="empty">空，使用内置默认值</div>'}
+    </div>
+    <div class="add-row">
+      <input type="text" id="add-mime-ext" class="ext" placeholder=".ext">
+      <input type="text" id="add-mime-type" placeholder="mime/type">
+      <button class="btn" type="button" onclick="addMime()">添加</button>
+    </div>
+  </div>
+</main>
+
+<div class="foot-line">
+  <span>u32-local-server v${version} · MIT</span>
+  <div class="links"><a href="./">首页</a><a href="./status">状态</a><a href="./llms.txt">llms.txt</a></div>
+</div>
+
+<div id="confirm-modal" class="modal-overlay" style="display:none">
+  <div class="modal-box">
+    <h3>确认添加路径</h3>
+    <div class="modal-path-row">
+      <span>输入</span><code id="modal-input"></code>
+    </div>
+    <div class="modal-path-row">
+      <span class="arrow">将添加</span><code id="modal-resolved"></code>
+    </div>
+    <div id="modal-warn" class="modal-warning" style="display:none">该路径在服务器上不存在，仍可添加（前缀规则照常生效）</div>
+    <div class="modal-actions">
+      <button class="btn" type="button" onclick="modalCancel()">取消</button>
+      <button class="btn btn-primary" type="button" onclick="modalConfirm()">确认添加</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let needsRestart = false
@@ -527,17 +249,20 @@ function appendRuleDom(type, ruleList, pathVal) {
   if (type === 'allow') {
     const modeBtn = document.createElement('button')
     modeBtn.className = 'mode-btn'
+    modeBtn.type = 'button'
     modeBtn.textContent = '读写'
     newRule.setAttribute('data-write', 'true')
     actionsDiv.appendChild(modeBtn)
     const visitBtn = document.createElement('button')
     visitBtn.className = 'visit-btn'
-    visitBtn.innerHTML = '<i class="fas fa-external-link-alt"></i> 访问'
+    visitBtn.type = 'button'
+    visitBtn.textContent = '访问'
     actionsDiv.appendChild(visitBtn)
   }
 
   const delBtn = document.createElement('button')
   delBtn.textContent = '删除'
+  delBtn.type = 'button'
   delBtn.className = 'del-btn'
   actionsDiv.appendChild(delBtn)
 
@@ -631,12 +356,11 @@ function validPort(port) {
 function showRestartingPage(newPort) {
   const html = '<div class="restart-page">' +
     '<div class="restart-content">' +
-    '<div class="restart-icon"><i class="fas fa-sync fa-spin"></i></div>' +
-    '<h1>服务器正在重启...</h1>' +
-    '<p>服务器将在新端口启动</p>' +
+    '<h1>服务器正在重启</h1>' +
+    '<p>服务将在新端口启动</p>' +
     '<div class="countdown"><span id="countdown">6</span> 秒</div>' +
     '<p class="new-url">' + newConfigUrl(newPort) + '</p>' +
-    '<button class="jump-btn" onclick="jumpNow(' + newPort + ')">立即跳转</button>' +
+    '<button class="btn btn-primary" type="button" onclick="jumpNow(' + newPort + ')">立即跳转</button>' +
     '</div>' +
     '</div>'
   document.body.innerHTML = html
@@ -680,12 +404,16 @@ async function addMime() {
     code1.textContent = ext
     const code2 = document.createElement('code')
     code2.textContent = mime
+    const actions = document.createElement('div')
+    actions.className = 'rule-actions'
     const btn = document.createElement('button')
-    btn.textContent = 'Del'
+    btn.textContent = '删除'
+    btn.type = 'button'
     btn.className = 'del-btn'
+    actions.appendChild(btn)
     newRule.appendChild(code1)
     newRule.appendChild(code2)
-    newRule.appendChild(btn)
+    newRule.appendChild(actions)
     ruleList.appendChild(newRule)
     extInput.value = ''
     mimeInput.value = ''

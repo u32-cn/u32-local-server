@@ -185,3 +185,16 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding:22px 0 36px}
 @media (prefers-reduced-motion:reduce){
   *{transition-duration:.01ms !important;animation-duration:.01ms !important}
 }
+
+/* 「让 AI 自动安装」入口与提示词弹窗 */
+.ai-install-row{margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ai-install-hint{font-size:12.3px;color:var(--ink-2)}
+.modal-overlay{position:fixed;inset:0;z-index:1000;background:rgba(16,24,40,.45);display:flex;align-items:center;justify-content:center;padding:24px}
+.modal-box{background:#fff;border-radius:14px;box-shadow:0 24px 60px -20px rgba(16,24,40,.5);width:min(720px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden}
+.modal-head{padding:14px 20px;font-size:14px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--line);display:flex;align-items:center}
+.modal-close{margin-left:auto;font-size:20px;line-height:1;cursor:pointer;color:var(--ink-2);padding:0 4px}
+.modal-close:hover{color:var(--ink)}
+.modal-pre{flex:1;overflow:auto;margin:0;padding:18px 20px;background:#f7f8fb;font-size:12.3px;line-height:1.65;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--ink);white-space:pre-wrap;word-break:break-word}
+.modal-foot{padding:12px 20px;border-top:1px solid var(--line);display:flex;align-items:center;gap:12px}
+.modal-hint{font-size:12.3px;color:var(--ink-2);margin-right:auto}
+.modal-overlay[hidden]{display:none}

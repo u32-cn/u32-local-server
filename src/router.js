@@ -1,13 +1,14 @@
 const logger = require('./logger')
 const fs = require('fs')
 const path = require('path')
-const { execSync } = require('child_process')
 const { redirect } = require('./utils')
 const fsApi = require('./fs-api')
 const bridge = require('./bridge')
 const artifacts = require('./artifacts')
 const sysinfo = require('./sysinfo')
 const statusPage = require('./status-page')
+const summary = require('./summary')
+const serviceStatus = require('./service-status')
 
 const LOCAL_HOSTNAMES = ['127.0.0.1', 'localhost', '::1', '[::1]']
 
@@ -52,6 +53,15 @@ function sendPlain(res, code, msg) {
   res.end(msg)
 }
 
+function sendJson(res, data, code) {
+  res.writeHead(code || 200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'no-store',
+    'access-control-allow-origin': '*',
+  })
+  res.end(JSON.stringify(data))
+}
+
 function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPageServe, bridgeStatusServe, pickerServe, pickerDemoServe, config) {
   const publicDir = path.join(__dirname, '../public')
   artifacts.init(config, config.file && config.file.mime) // 桥产物存储：建目录+启动清空+定时清扫
@@ -85,6 +95,11 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
       return res.end()
     }
 
+    if (url.pathname === '/favicon.ico') {
+      // 浏览器默认会探 /favicon.ico；页面已用 SVG 图标，这里回 204 避免控制台与指标里出现 404/403 噪音
+      res.writeHead(204)
+      return res.end()
+    }
     if (url.pathname === '/' || url.pathname === '') {
       logger.debug(`[INFO] Routing to home page\n`)
       return homeServe(req, res, config)
@@ -154,6 +169,16 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
       logger.debug(`[INFO] Routing to picker asset handler\n`)
       return pickerServe.serveAsset(req, res, url)
     }
+    if (url.pathname === '/api/summary' && req.method === 'GET') {
+      // 首页状态带数据源：与 SSR 首屏同一份计算，只含计数与布尔
+      logger.debug(`[INFO] Routing to summary api\n`)
+      return sendJson(res, Object.assign({ ok: true }, summary.collect(config)))
+    }
+    if (url.pathname === '/api/service-status' && req.method === 'GET') {
+      // 服务注册状态（只读探测）：首页运维卡轮询用，避免信任提交结果造成的假成功
+      logger.debug(`[INFO] Routing to service status api\n`)
+      return sendJson(res, Object.assign({ ok: true }, serviceStatus.detect()))
+    }
     if (url.pathname === '/api/service') {
       logger.debug(`[INFO] Routing to service API handler\n`)
       return handleServiceAPI(req, res)
@@ -211,6 +236,7 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
         '.css': 'text/css',
         '.js': 'application/javascript',
         '.md': 'text/markdown',
+        '.svg': 'image/svg+xml',
         '.woff2': 'font/woff2',
         '.woff': 'font/woff',
         '.ttf': 'font/ttf',
@@ -229,87 +255,63 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
   })
 }
 
+// 用当前 node 运行时直接执行本包入口，不依赖 u32-ls 是否在 PATH 里：
+// AI 托管会话装的全局包常落在工具私有 node 目录，PATH 里没有 u32-ls，
+// 原实现 execSync('start cmd /c u32-ls register') 会静默失败却照样回 ok:true（假成功）
+function spawnServiceCommand(action) {
+  const { spawn } = require('child_process')
+  const entry = path.join(__dirname, 'index.js')
+  const child = spawn(process.execPath, [entry, action], {
+    cwd: path.join(__dirname, '..'),
+    detached: true,
+    stdio: 'ignore',
+    windowsHide: true,
+  })
+  child.unref()
+}
+
 function handleServiceAPI(req, res) {
   if (req.method !== 'POST') {
-    res.writeHead(405, {
-      'Content-Type': 'text/plain',
-      'access-control-allow-origin': '*',
-      'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-      'access-control-allow-headers': '*',
-    })
-    return res.end('Method Not Allowed')
+    return sendJson(res, { ok: false, error: 'method-not-allowed' }, 405)
   }
 
   let body = ''
   req.on('data', chunk => body += chunk)
   req.on('end', () => {
+    let data
     try {
-      const data = JSON.parse(body)
-      logger.debug(`[SERVICE-API] Received action: ${data.action}\n`)
-
-      if (data.action === 'register') {
-        setTimeout(() => {
-          logger.info(`[INFO] Triggering service registration...\n`)
-          try {
-            if (process.platform === 'win32') {
-              execSync('start cmd /c u32-ls register', { stdio: 'ignore' })
-            } else {
-              execSync('u32-ls register &', { stdio: 'ignore' })
-            }
-          } catch (err) {
-            logger.error(`[ERROR] Failed to trigger register: ${err.message}\n`)
-          }
-        }, 100)
-
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'access-control-allow-headers': '*',
-        })
-        return res.end(JSON.stringify({ ok: true }))
-      }
-
-      if (data.action === 'unregister') {
-        setTimeout(() => {
-          logger.info(`[INFO] Triggering service unregistration...\n`)
-          try {
-            if (process.platform === 'win32') {
-              execSync('start cmd /c u32-ls unregister', { stdio: 'ignore' })
-            } else {
-              execSync('u32-ls unregister &', { stdio: 'ignore' })
-            }
-          } catch (err) {
-            logger.error(`[ERROR] Failed to trigger unregister: ${err.message}\n`)
-          }
-        }, 100)
-
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'access-control-allow-headers': '*',
-        })
-        return res.end(JSON.stringify({ ok: true }))
-      }
-
-      logger.error(`[SERVICE-API] ERROR: Unknown action: ${data.action}\n`)
-      res.writeHead(400, {
-        'Content-Type': 'text/plain',
-        'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'access-control-allow-headers': '*',
-      })
-      return res.end('unknown action')
+      data = JSON.parse(body || '{}')
     } catch (e) {
-      logger.error(`[SERVICE-API] ERROR: ${e.message}\n`)
-      res.writeHead(400, {
-        'Content-Type': 'text/plain',
-        'access-control-allow-origin': '*',
-        'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-        'access-control-allow-headers': '*',
+      logger.error(`[SERVICE-API] ERROR: invalid json body\n`)
+      return sendJson(res, { ok: false, error: 'invalid-json' }, 400)
+    }
+
+    const action = data.action
+    logger.debug(`[SERVICE-API] Received action: ${action}\n`)
+
+    if (action !== 'register' && action !== 'unregister') {
+      logger.error(`[SERVICE-API] ERROR: Unknown action: ${action}\n`)
+      return sendJson(res, { ok: false, error: 'unknown-action' }, 400)
+    }
+
+    // systemd 单元写入 /etc/systemd/system 需要 root，网页无法提权：
+    // 明确回报而不是假装成功，前端会提示用户到终端执行 sudo
+    if (process.platform !== 'win32') {
+      return sendJson(res, {
+        ok: false,
+        error: 'requires-root',
+        hint: 'sudo u32-ls ' + action,
       })
-      return res.end(e.message)
+    }
+
+    try {
+      spawnServiceCommand(action)
+      logger.info(`[INFO] Spawned service ${action} via node runtime\n`)
+      // accepted 只代表子进程已拉起，真实结果由前端轮询 /api/service-status 确认
+      return sendJson(res, { ok: true, accepted: true, action })
+    } catch (err) {
+      logger.error(`[ERROR] Failed to spawn ${action}: ${err.message}\n`)
+      return sendJson(res, { ok: false, error: err.message }, 500)
     }
   })
 }

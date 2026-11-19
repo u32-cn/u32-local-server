@@ -8,64 +8,8 @@ const sysinfo = require('./sysinfo')
 const PACKAGE_JSON = require('../package.json')
 
 /* ---------------- 格式化 ---------------- */
-function pad2(n) {
-  return String(n).padStart(2, '0')
-}
-
-function fmtBytes(n) {
-  if (!Number.isFinite(n)) return null
-  const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
-  let v = n
-  let i = 0
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024
-    i++
-  }
-  return (i === 0 ? String(Math.round(v)) : v.toFixed(v >= 100 ? 0 : 1)) + ' ' + units[i]
-}
-
-function fmtDuration(sec) {
-  sec = Math.max(0, Math.floor(sec || 0))
-  const d = Math.floor(sec / 86400)
-  const h = Math.floor((sec % 86400) / 3600)
-  const m = Math.floor((sec % 3600) / 60)
-  const s = sec % 60
-  return (d > 0 ? d + 'd ' : '') + pad2(h) + ':' + pad2(m) + ':' + pad2(s)
-}
-
-function fmtTime(ms) {
-  if (!Number.isFinite(ms)) return null
-  const d = new Date(ms)
-  return (
-    d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' +
-    pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ':' + pad2(d.getSeconds())
-  )
-}
-
-function fmtNumber(n) {
-  if (!Number.isFinite(n)) return null
-  return n.toLocaleString('en-US')
-}
-
-// 按字段名后缀统一格式化：采集层只负责给数值，单位语义写在键名里
-function fmtValue(key, v) {
-  if (v === null || v === undefined || v === '') return '—'
-  if (typeof v === 'boolean') return v ? '是' : '否'
-  if (typeof v === 'number') {
-    const suffix = key.split('.').pop()
-    if (/Bytes$/.test(suffix)) return fmtBytes(v)
-    if (/At$/.test(suffix)) return fmtTime(v)
-    if (/Percent$/.test(suffix)) return v.toFixed(1) + '%'
-    if (/Mhz$/.test(suffix)) return fmtNumber(v) + ' MHz'
-    if (/Sec$/.test(suffix)) return fmtDuration(v)
-    if (/Ms$/.test(suffix)) return v.toFixed(1) + ' ms'
-    if (/Usec$/.test(suffix)) return (v / 1e6).toFixed(3) + ' s'
-    if (/Count$/.test(suffix)) return fmtNumber(v)
-    if (/Hours$/.test(suffix)) return (v >= 0 ? '+' : '') + v
-    return String(v)
-  }
-  return String(v)
-}
+// 与首页共用 src/fmt.js：同一个数值不允许有两种写法
+const { pad2, fmtBytes, fmtDuration, fmtTime, fmtNumber, fmtValue } = require('./fmt')
 
 function pick(obj, dotted) {
   return dotted.split('.').reduce((acc, k) => (acc === null || acc === undefined ? undefined : acc[k]), obj)
@@ -187,6 +131,22 @@ const SECTIONS = [
   },
 ]
 
+// 调试级字段：默认折叠，点"全部字段"才展开。
+// 判断健康度不需要 argv0 / 缺页次数 / 上下文切换这类排查用信息，全铺开会把关键指标淹掉。
+const ADV_KEYS = new Set([
+  'app.scriptPath', 'app.nodeBinary', 'app.argv0', 'app.packageRoot', 'app.cwd',
+  'app.argv', 'app.execArgv', 'app.isTTY',
+  'server.family', 'server.pidFile', 'server.pidInFile', 'server.pidMatch',
+  'server.configSizeBytes', 'server.configMtimeAt', 'server.logSizeBytes', 'server.logMtimeAt',
+  'runtime.releaseName', 'runtime.arch', 'runtime.locale', 'runtime.execPath','runtime.heapTotalAvailableBytes',
+  'os.platform', 'os.version', 'os.shell', 'os.cpuSpeedMhz', 'os.cpuParallelism', 'os.loadAvg',
+  'proc.heapTotalBytes', 'proc.externalBytes', 'proc.arrayBuffersBytes', 'proc.maxRssBytes',
+  'proc.cpuUserUsec', 'proc.cpuSystemUsec', 'proc.pageFaultsMinorCount', 'proc.pageFaultsMajorCount',
+  'proc.fsReadCount', 'proc.fsWriteCount', 'proc.contextSwitchesVoluntaryCount',
+  'proc.contextSwitchesInvoluntaryCount', 'proc.signalsCount',
+  'bridge.pendingPollCount', 'bridge.pendingSendCount', 'bridge.pendingMessageCount',
+])
+
 const METRICS_SECTION = {
   id: 'metrics',
   title: '请求指标',
@@ -233,8 +193,9 @@ function renderRows(fields, flat) {
   return fields
     .map(([key, label]) => {
       const live = key === 'uptimeSec' ? ' data-live="uptime"' : ''
+      const adv = ADV_KEYS.has(key) ? ' adv' : ''
       const val = flat[key] === undefined ? '—' : flat[key]
-      return '<div class="row"><div class="k">' + escapeHtml(label) + '</div>' +
+      return '<div class="row' + adv + '"><div class="k">' + escapeHtml(label) + '</div>' +
         '<div class="v"><span data-k="' + escapeHtml(key) + '"' + live + '>' + escapeHtml(val) + '</span></div></div>'
     })
     .join('')
@@ -270,89 +231,91 @@ function renderPage(snap) {
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>运行状态 - u32-local-server</title>
-  <link rel="stylesheet" href="./public/css/space-grotesk.css">
+  <link rel="icon" type="image/svg+xml" href="./public/favicon.svg">
+  <link rel="stylesheet" href="./public/css/base.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
-      background: #FFFFFF; color: #000000; line-height: 1.5; font-size: 13px;
-    }
-    .mono { font-family: ui-monospace, SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace; }
+    .wrap { max-width: 1320px; }
 
-    .topbar { position: sticky; top: 0; z-index: 20; background: #FFFFFF; border-bottom: 2px solid #000000; }
-    .topbar-inner {
-      max-width: 1320px; margin: 0 auto; padding: 10px 20px;
-      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
-    }
-    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 15px; letter-spacing: -0.01em; }
-    .brand .ver { font-weight: 400; color: #666; font-size: 12px; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: #DDD; }
-    .dot.on { background: #16A34A; }
-    .dot.off { background: #DC2626; }
+    .statusbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding-bottom: 4px; }
     .chips { display: flex; gap: 6px; flex-wrap: wrap; }
-    .chip { border: 1px solid #000000; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
-    .chip b { font-weight: 700; color: #666; margin-right: 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
+    .chip {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      background: var(--card); border: 1px solid var(--line); border-radius: 8px;
+      padding: 4px 10px; font-size: 12px;
+    }
+    .chip b { font-weight: 500; font-size: 11px; color: var(--faint); }
+    .chip span { font-family: var(--mono); color: var(--ink); }
     .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-    .tools select, .tools button, .tools a.btn {
-      font-family: inherit; font-size: 12px; border: 1px solid #000000; background: #FFFFFF;
-      color: #000000; padding: 4px 10px; cursor: pointer; text-decoration: none; line-height: 1.4;
-    }
-    .tools button:hover, .tools a.btn:hover, .tools select:hover { background: #000000; color: #FFFFFF; }
-    .upd { font-size: 12px; color: #666; min-width: 130px; text-align: right; }
+    .upd { min-width: 128px; text-align: right; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 
-    main { max-width: 1320px; margin: 0 auto; padding: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 16px; align-items: start; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(430px, 1fr)); gap: 12px; align-items: start; margin-top: 14px; }
     .grid .wide { grid-column: 1 / -1; }
+    .card { overflow: hidden; }
 
-    .card { border: 1px solid #E5E5E5; background: #FFFFFF; overflow: hidden; }
-    .card-head {
-      display: flex; align-items: center; gap: 8px;
-      font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
-      padding: 9px 14px; border-bottom: 1px solid #000000; background: #FAFAFA;
-    }
-    .card-head .hint { margin-left: auto; font-size: 11px; font-weight: 400; color: #999; text-transform: none; letter-spacing: 0; }
     .rows { display: flex; flex-direction: column; }
-    .row { display: grid; grid-template-columns: 170px 1fr; gap: 10px; padding: 6px 14px; border-bottom: 1px solid #F2F2F2; }
+    .row {
+      display: grid; grid-template-columns: 168px 1fr; gap: 10px;
+      padding: 6px 18px; border-bottom: 1px solid #F2F2F5; font-size: 13px;
+    }
     .row:last-child { border-bottom: none; }
-    .row:hover { background: #FAFAFA; }
-    .k { color: #666; }
-    .v { overflow-wrap: anywhere; }
-    .v span[data-k] { cursor: copy; }
-    .v span[data-k]:hover { background: #F0F0F0; }
+    .row:hover { background: #FAFAFC; }
+    .k { color: var(--dim); font-size: 12.5px; }
+    .v { font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; }
+    .v span[data-k] { cursor: copy; border-radius: 3px; padding: 0 2px; }
+    .v span[data-k]:hover { background: var(--blue-soft); }
     .v span[data-k]:empty::before { content: '—'; }
+
+    /* 调试级字段默认折叠：默认视图只留判断健康度需要的字段 */
+    .row.adv { display: none; }
+    body.show-adv .row.adv { display: grid; }
 
     .table-wrap { overflow-x: auto; max-height: 420px; overflow-y: auto; }
     table { width: 100%; border-collapse: collapse; font-size: 12px; }
-    th, td { padding: 6px 14px; text-align: left; border-bottom: 1px solid #F2F2F2; white-space: nowrap; }
-    th { position: sticky; top: 0; background: #FAFAFA; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: #666; border-bottom: 1px solid #E5E5E5; }
-    td { overflow-wrap: anywhere; }
-    tr:hover td { background: #FAFAFA; }
-    td.empty { text-align: center; color: #999; padding: 20px; }
+    th, td { padding: 6px 18px; text-align: left; border-bottom: 1px solid #F2F2F5; white-space: nowrap; }
+    th {
+      position: sticky; top: 0; background: #FAFAFC; color: var(--faint);
+      font-size: 11px; font-weight: 500; border-bottom: 1px solid var(--line);
+    }
+    td { font-family: var(--mono); overflow-wrap: anywhere; }
+    tr:hover td { background: #FAFAFC; }
+    td.empty { text-align: center; color: var(--faint); padding: 20px; font-family: var(--sans); }
 
     .copy-tip {
       position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
-      background: #000000; color: #FFFFFF; font-size: 12px; font-weight: 700;
-      padding: 7px 14px; opacity: 0; transition: opacity 0.18s; pointer-events: none; z-index: 40;
       max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+      background: var(--ink); color: #fff; font-size: 12px; font-weight: 500;
+      padding: 7px 14px; border-radius: 8px; opacity: 0; transition: opacity .18s;
+      pointer-events: none; z-index: 40;
     }
     .copy-tip.show { opacity: 1; }
-    .foot { max-width: 1320px; margin: 0 auto; padding: 0 20px 40px; font-size: 12px; color: #666; }
-    .foot code { background: #F5F5F5; padding: 1px 5px; }
+
     @media (max-width: 560px) {
       .row { grid-template-columns: 1fr; gap: 0; }
       .k { font-size: 11px; }
-      .tools { margin-left: 0; width: 100%; }
+      .tools { width: 100%; margin-left: 0; }
+      .upd { text-align: left; }
     }
   </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="topbar-inner">
+  <header class="topbar">
+    <div class="wrap topbar-in">
       <div class="brand">
-        <span class="dot" id="live-dot"></span>
-        <span>u32-local-server</span>
+        <span class="dot ok" id="live-dot"></span>u32-local-server
         <span class="ver">v${escapeHtml(PACKAGE_JSON.version)}</span>
       </div>
+      <nav class="nav">
+        <a href="./">首页</a>
+        <a class="active" href="./status">状态</a>
+        <a href="./config">配置</a>
+        <span class="sep"></span>
+        <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">文档 ↗</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main wrap">
+    <div class="statusbar">
       <div class="chips">
         <span class="chip"><b>pid</b><span data-k="app.pid">—</span></span>
         <span class="chip"><b>uptime</b><span data-live="uptime" id="uptime">—</span></span>
@@ -367,14 +330,12 @@ function renderPage(snap) {
           <option value="10000">10s 刷新</option>
           <option value="0">暂停</option>
         </select>
-        <button id="refresh">刷新</button>
-        <a class="btn" href="./">首页</a>
+        <button class="btn btn-sm" id="refresh" type="button">刷新</button>
+        <button class="btn btn-sm" id="toggle-adv" type="button" title="显示 / 隐藏调试级字段">全部字段</button>
         <span class="upd" id="updated">—</span>
       </div>
     </div>
-  </div>
 
-  <main>
     <div class="grid">
       ${cardKv(SECTIONS[0], flat)}
       ${cardKv(SECTIONS[1], flat)}
@@ -391,9 +352,18 @@ function renderPage(snap) {
       ${cardTable('tbl-versions', '依赖组件版本（process.versions）', ['组件', '版本'], versionRows, 'wide')}
     </div>
   </main>
-  <div class="foot">
-    数据源 <code>/status/api</code>（JSON，同源同脱敏）· 指标不含本页自身的轮询请求 · 点击值可复制
-  </div>
+
+  <footer class="pagefoot">
+    <div class="wrap in">
+      <span>数据源 <code>/status/api</code>（JSON，同源同脱敏）</span>
+      <span>指标不含本页轮询与首页摘要请求</span>
+      <span>点击任意值可复制</span>
+      <div class="links">
+        <a href="./llms.txt" target="_blank" rel="noopener">llms.txt</a>
+        <a href="https://github.com/u32-cn/u32-local-server" target="_blank" rel="noopener">GitHub</a>
+      </div>
+    </div>
+  </footer>
   <div class="copy-tip" id="copy-tip"></div>
 
 <script>
@@ -452,7 +422,7 @@ async function refresh() {
     const tables = data.tables || {}
     Object.keys(tables).forEach(id => rebuildTable(id, tables[id]))
     tickUptime()
-    document.getElementById('live-dot').className = 'dot on'
+    document.getElementById('live-dot').className = 'dot ok'
     document.getElementById('updated').textContent = '更新于 ' + new Date(data.generatedAt).toLocaleTimeString()
   } catch (e) {
     document.getElementById('live-dot').className = 'dot off'
@@ -468,6 +438,13 @@ function startTimer() {
 
 document.getElementById('interval').addEventListener('change', startTimer)
 document.getElementById('refresh').addEventListener('click', refresh)
+
+// 调试级字段折叠开关：默认只看常用项，排查时再展开
+const advBtn = document.getElementById('toggle-adv')
+advBtn.addEventListener('click', function () {
+  const on = document.body.classList.toggle('show-adv')
+  advBtn.textContent = on ? '常用字段' : '全部字段'
+})
 
 // 点击值复制
 document.addEventListener('click', function (e) {

@@ -3,6 +3,7 @@
   'use strict'
 
   var DOCS = {
+    'home': '控制台首页',
     'file-access': '本地文件访问',
     'fs-api': '文件写入 API',
     'picker': '文件选择器',

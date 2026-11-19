@@ -4,6 +4,21 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+- ✨ 首页重做为一屏控制台：顶栏 → 状态带（运行时长 / 允许路径 / 桥在线 / 产物占用）→ 六宫格入口 → 运维行 → 折叠区（AI 指令 / 常用命令）。全页高度由约 3300px 降到一屏，移除「关于 / 功能特性 / 快速开始 / 命令参考」四块重复文案，产品介绍统一归文档站
+- ✨ 新增 `GET /api/summary`（首页状态带数据源，与 SSR 首屏同一份计算，只含计数与布尔）与 `GET /api/service-status`（只读探测开机自启 / 右键菜单是否已注册：Windows 查 Run 键与 shell 键，Linux 查 systemd unit 文件，结果缓存 1.5s）
+- ✨ 首页「系统集成」卡显示真实注册状态并支持一键注册 / 取消；「临时产物」卡并入运维行，保留打开目录与清空
+- ✨ 新增 `public/css/base.css`：三页共用的 token（浅灰底 #F6F6F8 / 白卡 14px 圆角 / 单一强调色 #2563EB）与顶栏、卡片、按钮、标签、提示条、表单基准
+- ✨ 新增 `src/fmt.js`（状态页与首页共用格式化，避免同一数值两种写法）、`src/summary.js`、`src/service-status.js`、`public/js/home.js`、`public/favicon.svg`
+- ✨ 新增 `docs/readme/home.md`
+
+### Changed
+- 🔧 `/api/service` 改为用 `process.execPath` 直接拉起本包入口执行注册，不再 `execSync('start cmd /c u32-ls register')`——后者在 `u32-ls` 不在 PATH 时会静默失败却回 `ok:true`（假成功）。返回 `accepted:true` 只代表子进程已拉起，页面轮询 `/api/service-status` 确认真实结果，未达预期显示「注册未生效」；Linux 下返回 `error: requires-root` 并提示 `sudo u32-ls register`
+- 🔧 注册 / 取消注册按钮由隐式 `event.target` 改为按 `data-svc-action` 定位，点图标子元素不再把状态写到图标上
+- 🔧 状态页与配置页套用同一视觉：统一顶栏（首页 / 状态 / 配置 / 文档）、卡片圆角与配色、按钮与表单样式；状态页调试级字段（argv / execArgv / 缺页 / 上下文切换等 43 项）默认折叠，点「全部字段」展开（实测 35 → 78 行）
+- 🔧 状态页请求指标排除 `/api/summary` 与 `/api/service-status` 轮询，避免首页每 5s 刷新污染指标
+- 🔧 `/favicon.ico` 回 204 并新增 SVG 图标，消除每页控制台的 403 与指标里的 4xx 噪音；`public/` 静态资源 MIME 表补 `.svg`
+
 ### Docs
 - 📝 `docs/` 重构为 GitHub Pages 站点（`.nojekyll` + `index.html` 主页 + `assets/` + `reader.html` 站内渲染），经 EdgeOne 回源分发到 `u32-local-server.u32.cn`
 - 📝 文档合并为单一源：`public/docs/*.md` 与 `docs/bridge-connection-lifecycle.md` 移入 `docs/readme/`，`src/router.js` 的 `/docs/<name>.md` 改读该目录，npm `files` 白名单增列 `docs/readme`；改一处同时作用于站点与运行时

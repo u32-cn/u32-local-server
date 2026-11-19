@@ -58,13 +58,14 @@ ls "%APPDATA%\npm\u32-ls.cmd"                               # 用户全局 bin �
 
 ## 功能文档索引（GET 每个 .md 获取完整用法）
 
+- [首页 /](/docs/home.md) - 控制台页：状态带（运行时长/允许路径/桥在线/临时产物占用）、六宫格入口、开机自启与右键菜单的**真实注册状态**（含一键注册/取消）、临时产物清理、AI 指令与常用命令折叠区；`GET /api/summary` 返回同源摘要（只含计数与布尔），`GET /api/service-status` 返回注册状态，`POST /api/service` 触发注册/取消（真实结果需轮询 service-status，`accepted` 不代表已生效）
 - [本地文件访问 /file/](/docs/file-access.md) - URL 格式（~/、盘符、Linux 路径）、目录浏览、权限模型；**默认拒绝所有文件，403 时先去 /config 加允许列表**
 - [CORS 代理 /proxy/](/docs/cors-proxy.md) - 代理任意 HTTP/HTTPS 绕过跨域，注入 CORS 头、去掉 X-Frame-Options，支持 iframe 嵌入
 - [文件写入 API /api/fs](/docs/fs-api.md) - REST 写入/追加/建目录/删除/移动/复制/查询（content 为 base64；按路径 只读/读写 权限）
 - [浏览器桥 /bridge](/docs/bridge.md) - AI 与浏览器页面间长轮询消息桥：页面注册（appId/appInstanceId/help）→ AI 下发指令同步等回包；多实例时用 ID短码（appInstanceId 前 2 字符，不区分大小写）指定操作对象，发指令仍用完整 appInstanceId；页面大产物（截图/导出）HTTP 直传落盘，AI 读上传回包返回的本地文件 path
 - [文件选择器 /picker](/docs/picker.md) - Win10 对话框风格网页选择器，iframe/弹窗嵌入，postMessage 回传协议 + 只读 JSON API；演示页 /picker-demo 可在线试各参数与回传结果
 - [配置管理 /config](/docs/config.md) - 允许列表/拒绝列表（只读/读写）、自定义 MIME、端口；页面操作即时生效
-- [运行状态 /status](/docs/status.md) - 只读观察页：PID/启动时间/运行时长/程序路径/Node 运行时/操作系统/进程资源/请求指标/浏览器桥计数；`GET /status/api` 返回同源 JSON（含 raw 原始值与 flat 格式化值），用于判断服务健康。不含任何敏感信息（环境变量/磁盘卷/主机名/用户名/家目录/网络接口），路径中的家目录显示为 `~`
+- [运行状态 /status](/docs/status.md) - 只读观察页：PID/启动时间/运行时长/程序路径/Node 运行时/操作系统/进程资源/请求指标/浏览器桥计数；调试级字段（argv/execArgv/缺页/上下文切换等）默认折叠，点「全部字段」展开；`GET /status/api` 返回同源 JSON（含 raw 原始值与 flat 格式化值），用于判断服务健康。不含任何敏感信息（环境变量/磁盘卷/主机名/用户名/家目录/网络接口），路径中的家目录显示为 `~`
 - [命令行 u32-ls](/docs/cli.md) - start/stop/restart/status/logs/url/open/copy-url/register 等全部命令
 
 ## 30 秒上手

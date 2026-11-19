@@ -1,0 +1,99 @@
+# u32-local-server
+
+> 本地 HTTP 文件服务器 + CORS 代理 + 浏览器桥。纯 Node.js 零依赖，仅监听 127.0.0.1。提供：本地文件 HTTP 访问、CORS 代理、文件写入 API、网页文件选择器、AI↔浏览器页面消息桥。本文件为功能索引，各功能详情见 /docs/ 下文档。
+
+**服务根地址**：`http://127.0.0.1:19527`（下文相对路径均基于此）
+
+## ⚠️ WorkBuddy 会话内启动的服务会被回收（实测；其他环境未验证）
+
+实测：在 **WorkBuddy** 托管会话里由 AI 执行 `u32-ls start` 拉起的进程，会在该轮命令结束后 **1~5 分钟内**消失。
+表现为启动正常、立刻 curl 返回 200，随后端口消失、PID 文件残留（`status` 报 stale）、日志既无 FATAL 也无 shutdown。
+原因未定位，但可排除崩溃。**其他 AI 工具或终端未做验证，不要据此推断。**
+
+**别信固定秒数**：曾记为 40~70 秒，2026-11-18 复测为「启动后 109 秒仍 HTTP 200、269 秒内已消失」，区间不稳定。
+
+在 WorkBuddy 里需要服务长驻时：
+- 让用户自己在终端跑 `u32-ls start`，或 `u32-ls register` 开机自启
+- 由 AI 拉起则用 Windows 计划任务，父进程为 Task Scheduler，实测存活 5 分钟以上；
+  **daemon 的 detached spawn 在该环境下同样被回收**（`u32-ls start` 本身就是 detached spawn，父进程消失也救不了），
+  WMI `Win32_Process Create` 被该环境安全策略拦截
+- 注册用 `node` 绝对路径，不要用 `schtasks /TR "u32-ls start"`——`u32-ls` 装在用户级 `%APPDATA%\npm`，
+  计划任务的系统级 PATH 找不到它，且该写法在 PowerShell 里引号嵌套会失败：
+
+```powershell
+$exe = "C:\Program Files\nodejs\node.exe"          # where node 确认真实路径
+$js  = "$env:APPDATA\npm\node_modules\u32-local-server\src\index.js"
+$act = New-ScheduledTaskAction -Execute $exe -Argument ('"' + $js + '" start')
+$trg = New-ScheduledTaskTrigger -Once -At (Get-Date).AddYears(1)
+$set = New-ScheduledTaskSettingsSet -ExecutionTimeLimit 0 -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+Register-ScheduledTask -TaskName u32-ls -Action $act -Trigger $trg -Settings $set -Force
+Start-ScheduledTask -TaskName u32-ls
+```
+
+- 该触发器不跨重启，重启后需重跑 `Start-ScheduledTask -TaskName u32-ls`，或改用 `-AtLogOn` / `u32-ls register`
+- 判断服务是否真在跑：**观察 ≥5 分钟**再下结论，不要只看启动瞬间（90 秒时 200 正常也可能随后就死）；
+  计划任务 `State` 显示 `Ready` 属正常（`u32-ls start` 是 daemon 化，任务瞬间完成退出），
+  判断依据是 `LastTaskResult=0` 且 `netstat` 有 19527 LISTENING
+
+## ⚠️ 全局安装位置：必须装到用户真实的 npm 全局目录
+
+**不要让 AI 工具把本包装进它自己托管的 node 运行时。**
+
+在 WorkBuddy / Cursor 等 AI 托管会话里直接 `npm i -g u32-local-server`，`npm` 指向的是该工具自带的 node，prefix 形如
+`C:\Users\<用户>\.workbuddy\binaries\node\versions\<版本>-<构建>\`。该路径**不在用户持久化 PATH 里**（User/Machine PATH 均无，仅工具会话内临时注入），后果：
+
+- 用户自己的终端、资源管理器、`schtasks` 计划任务 → `u32-ls: command not found`
+- 目录名带版本指纹，工具升级运行时即换目录，装的包变孤儿
+- 与用户侧同名包版本分叉（两份绑不同 node），只升级一份就行为不一致
+
+正确做法（Windows，显式指向用户 npm 全局目录）：
+
+```bash
+"C:/Program Files/nodejs/npm.cmd" i -g u32-local-server    # 落到 %APPDATA%\npm
+npm config get prefix                                       # 确认不是工具私有路径
+ls "%APPDATA%\npm\u32-ls.cmd"                               # 用户全局 bin 里要有 shim
+```
+
+最后**新开普通终端**（非 AI 会话）跑 `u32-ls -v` 有输出才算装好。误装的双份，确认用户那份可用后卸掉工具私有那份。
+
+## 功能文档索引（GET 每个 .md 获取完整用法）
+
+- [首页 /](/docs/home.md) - 控制台页：状态带（运行时长/允许路径/桥在线/临时产物占用）、六宫格入口、开机自启与右键菜单的**真实注册状态**（含一键注册/取消）、临时产物清理、AI 指令与常用命令折叠区；`GET /api/summary` 返回同源摘要（只含计数与布尔），`GET /api/service-status` 返回注册状态，`POST /api/service` 触发注册/取消（真实结果需轮询 service-status，`accepted` 不代表已生效）
+- [本地文件访问 /file/](/docs/file-access.md) - URL 格式（~/、盘符、Linux 路径）、目录浏览、权限模型；**默认拒绝所有文件，403 时先去 /config 加允许列表**
+- [CORS 代理 /proxy/](/docs/cors-proxy.md) - 代理任意 HTTP/HTTPS 绕过跨域，注入 CORS 头、去掉 X-Frame-Options，支持 iframe 嵌入
+- [文件写入 API /api/fs](/docs/fs-api.md) - REST 写入/追加/建目录/删除/移动/复制/查询（content 为 base64；按路径 只读/读写 权限）
+- [浏览器桥 /bridge](/docs/bridge.md) - AI 与浏览器页面间长轮询消息桥：页面注册（appId/appInstanceId/help）→ AI 下发指令同步等回包；多实例时用 ID短码（appInstanceId 前 2 字符，不区分大小写）指定操作对象，发指令仍用完整 appInstanceId；页面大产物（截图/导出）HTTP 直传落盘，AI 读上传回包返回的本地文件 path
+- [文件选择器 /picker](/docs/picker.md) - Win10 对话框风格网页选择器，iframe/弹窗嵌入，postMessage 回传协议 + 只读 JSON API；演示页 /picker-demo 可在线试各参数与回传结果
+- [配置管理 /config](/docs/config.md) - 允许列表/拒绝列表（只读/读写）、自定义 MIME、端口；页面操作即时生效
+- [运行状态 /status](/docs/status.md) - 只读观察页：PID/启动时间/运行时长/程序路径/Node 运行时/操作系统/进程资源/请求指标/浏览器桥计数；调试级字段（argv/execArgv/缺页/上下文切换等）默认折叠，点「全部字段」展开；`GET /status/api` 返回同源 JSON（含 raw 原始值与 flat 格式化值），用于判断服务健康。不含任何敏感信息（环境变量/磁盘卷/主机名/用户名/家目录/网络接口），路径中的家目录显示为 `~`
+- [命令行 u32-ls](/docs/cli.md) - start/stop/restart/status/logs/url/open/copy-url/register 等全部命令
+
+## 30 秒上手
+
+```bash
+BASE=http://127.0.0.1:19527
+
+# 1. 读某个功能的完整文档（如浏览器桥）
+curl $BASE/docs/bridge.md
+
+# 2. 看有哪些在线浏览器桥 App
+curl $BASE/bridge/api/apps
+
+# 3. 代理任意 URL（绕过跨域）
+curl $BASE/proxy/https://api.example.com/data
+```
+
+## 403 错误处理
+
+访问 `/file/...` 返回 403 = 路径不在允许列表（默认全拒绝）。解决：
+
+1. 打开 `/config` 配置页面
+2. 「允许列表」→ 添加路径：`~/`（主目录）或 `/C:/imgs/` 等绝对路径
+3. 保存，即时生效
+
+## 全局约定
+
+- 仅监听 127.0.0.1，不暴露公网
+- 路径统一 POSIX 风格：`~/x`、`/C:/x`（Windows 盘符）、`/etc/x`（Linux）
+- Host 校验（防 DNS rebinding）+ 写接口 Origin 同源校验（防 CSRF）
+- 文档站（同一批文档的网页版）：<https://u32-local-server.u32.cn/>

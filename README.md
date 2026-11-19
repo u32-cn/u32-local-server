@@ -2,7 +2,7 @@
 
 本地 HTTP 文件服务器 + CORS 代理，纯 Node.js 零依赖。
 
-文档站：<https://u32-local-server.u32.cn/>
+文档站：<https://u32-local-server.u32.cn/>（站点主页即仓库 `docs/` 目录下的 `index.html`，`docs/` 就是站点根）
 
 ## 两个核心用途
 
@@ -69,10 +69,12 @@ npm run dev
 
 默认端口 `19527`，仅监听 `127.0.0.1`。启动后访问：
 
-- 首页：`http://localhost:19527/`
+- 首页（控制台）：`http://localhost:19527/` —— 状态带 + 六宫格入口 + 系统集成注册状态 + 临时产物清理，一屏内完成，详见 [docs/readme/home.md](docs/readme/home.md)
+- 运行状态：`http://localhost:19527/status` —— 进程/内存/请求指标，调试级字段默认折叠
 - 配置页面：`http://localhost:19527/config`
 - 文件选择器：`http://localhost:19527/picker`
 - 选择器演示页：`http://localhost:19527/picker-demo`
+- 浏览器桥状态：`http://localhost:19527/bridge`
 
 ## 使用场景
 
@@ -493,7 +495,8 @@ src/cmd-service.js    # register/unregister：注册表 Run 键自启 + 右键�
 
 ### 相关文档
 
-- **文档站** <https://u32-local-server.u32.cn/> —— 源码在 `docs/`，GitHub Pages 出站、EdgeOne 回源加速。`docs/index.html` 是主页，`docs/reader.html?doc=<id>` 站内渲染 markdown
+- **`docs/` 是文档站主页**：仓库 `docs/` 目录就是 GitHub Pages 站点根，`docs/index.html` 即站点首页（<https://u32-local-server.u32.cn/>），GitHub Pages 出站、EdgeOne 回源加速
+- `docs/reader.html?doc=<id>` - 站内 markdown 阅读页，`?doc=` 取 `docs/readme/` 下的文件名（不含 `.md`）
 - `docs/readme/*.md` - **文档唯一源**：既是 Pages 站点的正文，也是 npm 包内 `/docs/<name>.md` 的伺服内容（`src/router.js` 按文件名映射到该目录），改一处两边生效
 - `public/llms.txt` - 面向 LLM 的功能索引，指向上述 `/docs/*.md`
 - `AGENTS.md` - AI agent 行为纪律（事实性内容以本 README 为准）

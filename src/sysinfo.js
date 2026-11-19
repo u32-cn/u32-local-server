@@ -63,10 +63,11 @@ function routeKey(rawUrl) {
   return '/' + (ROUTE_KEYS.has(seg) ? seg : '(其他)')
 }
 
-// 由 router 在请求入口调用（一处钩子）。状态页自身轮询不计数，否则指标被观察行为污染
+// 由 router 在请求入口调用（一处钩子）。观察类轮询不计数，否则指标被观察行为本身污染
+const IGNORED_POLL_PATHS = new Set(['/status', '/api/summary', '/api/service-status'])
 function recordRequest(req, res) {
   const p = pathnameOf(req.url)
-  if (p === '/status' || p.startsWith('/status/')) return
+  if (IGNORED_POLL_PATHS.has(p) || p.startsWith('/status/')) return
 
   const t0 = process.hrtime.bigint()
   metrics.totalCount++
