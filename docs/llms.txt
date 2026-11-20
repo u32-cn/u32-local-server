@@ -1,67 +1,39 @@
 # u32-local-server
 
-> 本地 HTTP 文件服务器 + CORS 代理 + 浏览器桥。纯 Node.js 零依赖，仅监听 127.0.0.1。
-> 本文件是功能索引与快速导读，安装/启动细节与各功能完整用法见 /docs/ 下文档。
-
-## 产品简介
-
-u32-local-server 是一个跑在本机（127.0.0.1）的 HTTP 服务，为两类场景提供通道：
-
-1. **AI ↔ 本机文件**：AI 工具（能发 HTTP 请求的 agent）经 `/file/` 读本地文件、经 `/api/fs` 写入，绕开终端权限与浏览器文件系统 API 的授权限制
-2. **AI ↔ 浏览器页面**：网页注册到浏览器桥后，AI 可下发指令、同步等回包，页面大产物（截图/导出）HTTP 直传落盘供 AI 读取
-
-另有 CORS 代理、网页文件选择器、Web 控制台/状态页/配置页等配套能力。
-
-## 核心特色
-
-- **零依赖单包**：纯 Node.js 内置模块实现（Node ≥ 18），`npm i -g` 即装即用
-- **默认拒绝的权限模型**：文件访问默认全拒绝，allow/deny 双列表 + 路径级 只读/读写，deny 优先
-- **安全内建**：Host 白名单（防 DNS rebinding）+ 写接口 Origin 同源校验（防 CSRF）；仅监听 127.0.0.1 不暴露公网
-- **文档自描述**：服务自己对外提供 `/docs/*.md` 与本文件（`/llms.txt`），AI 读服务即可学会用法，无需另找文档
-- **可选系统集成**：`u32-ls register` 注册开机自启（Windows 另加右键菜单），注册状态真实可查、可一键取消
+> 本地 HTTP 文件服务器 + CORS 代理 + 浏览器桥。零依赖，仅监听 127.0.0.1。
+> 本文件是索引；每个功能的完整用法 GET 对应 /docs/*.md。
 
 ## 安装
 
-**先按系统选方案：Windows 优先用免 Node 安装包；macOS/Linux 没有安装包，用 npm 安装（Node.js ≥ 18）。**
+**安装下载务必先读取文档 [/docs/installation.md](/docs/installation.md)，按文档流程执行。**
 
-**Windows 安装包下载**：GET [https://u32-local-server.u32.cn/data/win/latest.yml](https://u32-local-server.u32.cn/data/win/latest.yml) 取 `version` 字段，下载 `https://u32-local-server.u32.cn/download/win/u32-local-server-setup-<version>.exe` 双击安装。**完整步骤、校验、兜底与陷阱必须先读 [安装文档](/docs/installation.md)。**
+- **Windows（优先）**：免 Node 安装包。GET <https://u32-local-server.u32.cn/data/win/latest.yml> 取 `version`，下载 `https://u32-local-server.u32.cn/download/win/u32-local-server-setup-<version>.exe` 双击安装
+- **macOS/Linux**：无安装包，`npm i -g u32-local-server`（Node ≥ 18），装完新开终端 `u32-ls -v` 有输出才算装好
 
 ## 启动
 
-- 用户终端：`u32-ls start`（默认端口 19527）
-- AI 托管会话（WorkBuddy 等）代执行：**不要直接 `u32-ls start`**——实测进程会在 1~5 分钟内被会话回收，需改用 Windows 计划任务拉起
+- `u32-ls start`（默认 127.0.0.1:19527）
+- **AI 托管会话禁止直接 `u32-ls start`**——进程 1~5 分钟内被会话回收，改用 Windows 计划任务，见 [/docs/getting-started.md](/docs/getting-started.md)
 
-详细步骤、验证标准（观察 ≥5 分钟）与完整陷阱说明见 [启动与上手](/docs/getting-started.md)。
+服务根地址 `http://127.0.0.1:{{PORT}}`（本地服务返回时替换为实际端口；文档站按默认 19527 理解）。
 
-**服务根地址**：`http://127.0.0.1:{{PORT}}`（下文相对路径均基于此）
-**PORT 说明**：上文 PORT 是占位符——本地服务返回本文件时会替换为实际端口，未改动时默认 19527；公网文档站不做替换，按默认值理解即可。
+## 功能文档索引（GET 每个 .md 获取完整用法）
 
-## 使用：功能文档索引（GET 每个 .md 获取完整用法）
-
-快速上手：
-
-- [启动与上手](/docs/getting-started.md) - 启动、验证、AI 托管会话回收陷阱与计划任务方案、首次 403 解除、30 秒上手
-- [安装](/docs/installation.md) - 安装唯一权威文档：前置、npm 落点检查（AI 工具私有运行时陷阱）、自检、误装清理、**自动升级**（Windows 安装包版 `u32-ls update` 与首页「软件更新」卡）
-- [首页 /](/docs/home.md) - 控制台页：状态带（运行时长/允许路径/桥在线/临时产物占用）、六宫格入口、开机自启与右键菜单的**真实注册状态**（含一键注册/取消）、**软件更新**（检测/下载/拉起安装向导）、临时产物清理、AI 指令与常用命令折叠区；`GET /api/summary` 返回同源摘要（只含计数与布尔），`GET /api/service-status` 返回注册状态，`POST /api/service` 触发注册/取消（真实结果需轮询 service-status，`accepted` 不代表已生效），`GET /api/update` 查最新版、`POST /api/update {action}` 触发下载/安装
-- [命令行 u32-ls](/docs/cli.md) - launch（启动服务+托盘，快捷方式入口）/start/stop/restart/status/logs/url/open/copy-url/register/unregister/tray/tray-stop/update（Windows 安装包自动升级）/clear-artifacts 等全部命令与文件位置
-
-核心能力：
-
-- [本地文件访问 /file/](/docs/file-access.md) - URL 格式（~/、盘符、Linux 路径）、目录浏览、权限模型；**默认拒绝所有文件，403 时先去 /config 加允许列表**
-- [CORS 代理 /proxy/](/docs/cors-proxy.md) - 代理任意 HTTP/HTTPS 绕过跨域，注入 CORS 头、去掉 X-Frame-Options，支持 iframe 嵌入
-- [文件写入 API /api/fs](/docs/fs-api.md) - REST 写入/追加/建目录/删除/移动/复制/查询（content 为 base64；按路径 只读/读写 权限）
-- [浏览器桥 /bridge](/docs/bridge.md) - AI 与浏览器页面间长轮询消息桥：页面注册（appId/appInstanceId/help）→ AI 下发指令同步等回包；多实例时用 ID短码（appInstanceId 前 2 字符，不区分大小写）指定操作对象，发指令仍用完整 appInstanceId；页面大产物（截图/导出）HTTP 直传落盘，AI 读上传回包返回的本地文件 path
-- [桥连接机制](/docs/bridge-connection-lifecycle.md) - 浏览器桥完整连接生命周期：身份模型设计、25s 心跳、指令收发时序、秒级判死 + 60s 惰性兜底、故障模式一览；排查桥不在线问题时先读这篇
-- [文件选择器 /picker](/docs/picker.md) - Win10 对话框风格网页选择器，iframe/弹窗嵌入，postMessage 回传协议 + 只读 JSON API；引导页 /picker-guide 展示三种模式接入脚本并可在线试用；演示页 /picker-demo 可在线试各参数与回传结果
-
-管理与观察：
-
-- [配置管理 /config](/docs/config.md) - 允许列表/拒绝列表（只读/读写）、自定义 MIME、端口；页面操作即时生效
-- [运行状态 /status](/docs/status.md) - 只读观察页：PID/启动时间/运行时长/程序路径/Node 运行时/操作系统/进程资源/请求指标/浏览器桥计数；调试级字段默认折叠，点「全部字段」展开；`GET /status/api` 返回同源 JSON，用于判断服务健康。不含任何敏感信息（环境变量/磁盘卷/主机名/用户名/家目录/网络接口），路径中的家目录显示为 `~`
+- [安装](/docs/installation.md) - 下载直链、校验、兜底、npm 落点检查、自动升级（`u32-ls update` / 首页「软件更新」卡）
+- [启动与上手](/docs/getting-started.md) - 启动验证、AI 会话回收陷阱与计划任务方案、首次 403 解除
+- [首页 /](/docs/home.md) - 控制台：状态带、系统集成注册状态、软件更新、临时产物；`GET /api/summary`、`GET /api/service-status`、`POST /api/service`、`GET/POST /api/update`
+- [命令行 u32-ls](/docs/cli.md) - 全部子命令与文件位置
+- [本地文件访问 /file/](/docs/file-access.md) - 路径规则、目录浏览；**默认拒绝所有文件，403 先去 /config 加允许列表**
+- [文件写入 API /api/fs](/docs/fs-api.md) - 七个动作（content 为 base64），按路径 只读/读写
+- [CORS 代理 /proxy/](/docs/cors-proxy.md) - 转发任意 HTTP 请求补 CORS 头
+- [浏览器桥 /bridge](/docs/bridge.md) - 页面注册 → AI 下发指令同步等回包；大产物 HTTP 直传落盘；多实例用 ID短码指定
+- [桥连接机制](/docs/bridge-connection-lifecycle.md) - 心跳、判死时序；排查桥不在线先读这篇
+- [文件选择器 /picker](/docs/picker.md) - 网页选择器，iframe 嵌入；引导页 /picker-guide，演示 /picker-demo
+- [配置管理 /config](/docs/config.md) - 允许/拒绝列表、MIME、端口，即时生效
+- [运行状态 /status](/docs/status.md) - 只读指标页 + `GET /status/api`；不含敏感信息
 
 ## 全局约定
 
-- 仅监听 127.0.0.1，不暴露公网
-- 路径统一 POSIX 风格：`~/x`、`/C:/x`（Windows 盘符）、`/etc/x`（Linux）
-- Host 校验（防 DNS rebinding）+ 写接口 Origin 同源校验（防 CSRF）
-- 文档站（同一批文档的网页版）：<https://u32-local-server.u32.cn/>
+- 仅监听 127.0.0.1；路径 POSIX 风格（`~/x`、`/C:/x`）
+- Host 白名单防 DNS rebinding；写接口 Origin 同源校验防 CSRF
+- 文档站：<https://u32-local-server.u32.cn/>
