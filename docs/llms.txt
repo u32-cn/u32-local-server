@@ -7,9 +7,6 @@
 
 **安装下载务必先读取文档 [/docs/installation.md](/docs/installation.md)，按文档流程执行。**
 
-- **Windows（优先）**：免 Node 安装包。GET <https://u32-local-server.u32.cn/data/win/latest.yml> 取 `version`，下载 `https://u32-local-server.u32.cn/download/win/u32-local-server-setup-<version>.exe` 双击安装
-- **macOS/Linux**：无安装包，`npm i -g u32-local-server`（Node ≥ 18），装完新开终端 `u32-ls -v` 有输出才算装好
-
 ## 启动
 
 - `u32-ls start`（默认 127.0.0.1:19527）
