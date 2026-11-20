@@ -201,3 +201,6 @@ footer{border-top:1px solid var(--line);margin-top:20px;padding:22px 0 36px}
 .ai-install-top .btn{padding:9px 18px;font-size:13px}
 
 /* 「让 AI 使用」提示词列表 */
+
+/* 下载按钮版本徽标（GitHub latest release 版本号） */
+.btn .dl-ver{font-family:var(--mono);font-size:11px;font-weight:400;background:rgba(255,255,255,.18);border-radius:6px;padding:1px 7px;margin-left:2px}

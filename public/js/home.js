@@ -275,9 +275,107 @@
     })
   }
 
+  /* ---------- 软件更新（自动下载 + 安装解耦） ----------
+     服务端自动调度：启动 30s 后查新版，之后每 6h；发现新版自动后台下载缓存（恒留一个最新 exe）。
+     前端只轮询 GET /api/update 读状态：
+       无更新               → 「已是最新」
+       下载中               → 「下载中 x%」（按钮置灰）
+       已就绪               → 「新版 vX.Y.Z 已就绪」+「安装新版本」按钮（点击直接拉向导）
+       失败                 → 原因 +「重试」 */
+  var updBusy = false
+
+  function updEls() {
+    return {
+      latest: document.getElementById('upd-latest'),
+      statusRow: document.getElementById('upd-status-row'),
+      status: document.getElementById('upd-status'),
+      checkBtn: document.getElementById('upd-check'),
+      installBtn: document.getElementById('upd-install'),
+    }
+  }
+
+  function updRender(s) {
+    var el = updEls()
+    if (!el.latest) return
+    if (!s || s.ok !== true) {
+      el.latest.textContent = '检测失败'
+      if (el.statusRow) el.statusRow.hidden = false
+      if (el.status) el.status.textContent = (s && s.error) || '网络不可达'
+      if (el.installBtn) el.installBtn.hidden = true
+      if (el.checkBtn) { el.checkBtn.disabled = false; el.checkBtn.textContent = '重试' }
+      return
+    }
+    if (!s.updateAvailable) {
+      el.latest.textContent = s.latest + '（已是最新）'
+      if (el.statusRow) el.statusRow.hidden = true
+      if (el.installBtn) el.installBtn.hidden = true
+      if (el.checkBtn) el.checkBtn.disabled = false
+      return
+    }
+    el.latest.textContent = s.latest
+    if (el.statusRow) el.statusRow.hidden = false
+    if (s.downloading) {
+      if (el.status) el.status.textContent = '新版下载中… ' + (s.progress || 0) + '%'
+      if (el.installBtn) { el.installBtn.hidden = true }
+      if (el.checkBtn) el.checkBtn.disabled = false
+    } else if (s.downloaded) {
+      if (el.status) el.status.textContent = '新版已就绪，点击右侧按钮安装'
+      if (el.installBtn) { el.installBtn.hidden = false; el.installBtn.disabled = false; el.installBtn.textContent = '安装新版本' }
+    } else {
+      // 有更新但既不在下载也没有缓存（下载失败等）：给重试入口
+      if (el.status) el.status.textContent = '下载未完成' + (s.error ? '：' + s.error : '')
+      if (el.installBtn) el.installBtn.hidden = true
+      if (el.checkBtn) el.checkBtn.disabled = false
+    }
+  }
+
+  async function updPollOnce() {
+    if (updBusy) return
+    var s = await getJSON('./api/update')
+    updRender(s)
+  }
+
+  // 页面上「检测更新 / 重试」：POST check 强制重查，之后恢复轮询
+  async function updManualCheck(btn) {
+    if (updBusy) return
+    updBusy = true
+    var el = updEls()
+    if (el.latest) el.latest.textContent = '检测中…'
+    var s = await getJSON('./api/update', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'check' }),
+    })
+    updBusy = false
+    if (el.checkBtn) el.checkBtn.textContent = '检测更新'
+    updRender(s)
+  }
+
+  function updInstall() {
+    var el = updEls()
+    if (el.installBtn) { el.installBtn.disabled = true; el.installBtn.textContent = '启动安装中…' }
+    if (el.status) el.status.textContent = '安装向导已启动，按向导提示完成升级（会自动停服务与托盘）'
+    getJSON('./api/update', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'install' }),
+    }).then(function (r) {
+      if (!r || !r.ok) {
+        if (el.status) el.status.textContent = '启动失败：' + ((r && r.error) || '未知错误')
+        if (el.installBtn) { el.installBtn.disabled = false; el.installBtn.textContent = '安装新版本' }
+      }
+      // 成功时不回滚按钮文案：向导接管，页面即将随服务重启失联
+    })
+  }
+
+  var updCheckBtn = document.getElementById('upd-check')
+  if (updCheckBtn) updCheckBtn.addEventListener('click', function () { updManualCheck(updCheckBtn) })
+  var updInstallBtn = document.getElementById('upd-install')
+  if (updInstallBtn) updInstallBtn.addEventListener('click', updInstall)
+
   /* ---------- 启动 ---------- */
   setInterval(tickUptime, 1000)
   tickUptime()
   startPolling()
+  updPollOnce()
+  setInterval(updPollOnce, 5000) // 跟随首页 5s 轮询节奏刷新升级状态（下载进度/就绪态）
 })()
 

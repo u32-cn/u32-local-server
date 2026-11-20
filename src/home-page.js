@@ -133,7 +133,7 @@ function renderPage(config, snap) {
   .copy:hover { background: var(--blue); color: #fff; }
   .copy.done { background: var(--green-soft); color: var(--green); opacity: 1; }
 
-  .ops { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ops { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
 
   /* 顶部 AI 提示词区： alerts 之后、入口之前，视觉强调 */
   .ai-top {
@@ -275,6 +275,18 @@ function renderPage(config, snap) {
       <div class="btns">
         <button class="btn btn-primary" type="button" data-svc-action="register">注册服务</button>
         <button class="btn" type="button" data-svc-action="unregister">取消注册</button>
+      </div>
+    </div>
+    <div class="op">
+      <div class="op-head">
+        <svg viewBox="0 0 24 24"><path d="M12 4l0 12"/><path d="M7 11l5 5l5 -5"/><path d="M5 20l14 0"/></svg>软件更新
+      </div>
+      <div class="row"><span class="k">当前版本</span>v${version}</div>
+      <div class="row"><span class="k">最新版本</span><span id="upd-latest">检测中…</span></div>
+      <div class="row" id="upd-status-row" hidden><span class="k">状态</span><span id="upd-status"></span></div>
+      <div class="btns">
+        <button class="btn" type="button" id="upd-check">检测更新</button>
+        <button class="btn btn-primary" type="button" id="upd-install" hidden>安装新版本</button>
       </div>
     </div>
     <div class="op">

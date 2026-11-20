@@ -60,6 +60,10 @@
 
 `degraded: true` 表示探测本身失败（Windows 下 `reg.exe` 不可用或被安全策略拦截），此时页面按「未注册」展示。
 
+### 软件更新卡
+
+三张运维卡之一（Windows 安装包版主入口）：打开首页时静默 `GET /api/update` 检测 GitHub 最新 Release，「检测更新」手动重查；有更新时「下载并安装」按钮出现，`POST /api/update {action:'download'}` 下载到 `~/.u32-local-server/update/`，完成后 `POST {action:'install'}` 拉起安装向导（向导内 PrepareToInstall 先停服务与托盘）。npm 版检测照常工作，安装链路不适用（提示走 npm 升级）。
+
 ### POST /api/service
 
 ```json

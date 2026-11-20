@@ -62,3 +62,12 @@ npm config get prefix
 - 注意：exe 未做代码签名，首次运行 Windows SmartScreen 可能提示，选择「仍要运行」
 
 > 维护者构建：`node scripts/build-icon.js` → `node scripts/build-sea.js` → `ISCC.exe scripts/installer.iss`。SEA 不支持交叉编译；本项目**只出 Windows 安装包**，macOS/Linux 不出包、用 npm 安装。
+
+## 自动升级（Windows 安装包版）
+
+已装用户升级不用再手动下安装包，两种入口等价：
+
+- **控制台首页 → 运维 → 软件更新**：自动检测最新版（GitHub Releases），有更新时点「下载并安装」，下载完成后自动拉起安装向导，向导会先停服务与托盘再覆盖安装，配置与授权目录全部保留
+- **命令行**：`u32-ls update`（`--check` 只查版本；`-y` 免确认直接装）
+
+机制细节：版本元数据实时查 GitHub API `releases/latest`；安装包下载到 `~/.u32-local-server/update/`（同名完整文件已存在则跳过重复下载，可手动清理）；升级不影响配置——Inno Setup 覆盖安装不动 `~/.u32-local-server/` 下的用户数据。npm 版升级走 `npm i -g u32-local-server@latest`，不走这条链路。

@@ -103,3 +103,37 @@ jobs:
             --title $tag `
             --notes-file release-notes.md `
             --latest
+
+      # 官网下载走 EdgeOne 直链回源 Releases（/download/win/* 路径规则），exe 不进仓库；
+      # 这里只提交 latest.yml 版本元数据（Pages 伺服，官网按钮读它显示版本号与直链文件名）。
+      # push 到 main 触发 Pages 重新发布。
+      - name: Publish latest.yml to Pages
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $exe = "dist/u32-local-server-setup-$version.exe"
+          $size = (Get-Item $exe).Length
+          # sha256 供完整性校验（latest.yml 格式对齐 git-notes）
+          $sha = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          $yml = "version: $version`npath: download/win/u32-local-server-setup-$version.exe`nfiles:`n  - url: u32-local-server-setup-$version.exe`n    size: $size`n    sha256: $sha`n"
+          New-Item -ItemType Directory -Force -Path docs/data/win | Out-Null
+          $yml | Out-File -FilePath docs/data/win/latest.yml -Encoding utf8NoBOM
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/data/win/latest.yml
+          git commit -m "chore(release): update latest.yml for $version" --no-verify
+          git push origin HEAD
+
+      - name: Wait for Pages deployment
+        shell: pwsh
+        run: |
+          # 等 Pages 部署完成（最长 5 分钟），保证下载直链即刻可用
+          $ok = $false
+          for ($i = 0; $i -lt 30; $i++) {
+            Start-Sleep -Seconds 10
+            $page = gh api repos/${{ github.repository }}/pages/builds/latest --jq '.status' 2>$null
+            Write-Host "pages build status: $page"
+            if ($page -eq 'built') { $ok = $true; break }
+          }
+          if (-not $ok) { Write-Warning 'Pages 部署状态未确认（非致命，直链稍后自动可用）' }

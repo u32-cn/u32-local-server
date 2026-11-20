@@ -3,7 +3,7 @@
 ; 需先运行 node scripts/build-icon.js 和 node scripts/build-sea.js
 
 #define AppName "u32-local-server"
-#define AppVersion "1.7.1"
+#define AppVersion "1.8.0"
 #define AppPublisher "vtxf"
 #define AppExeName "u32-ls.exe"
 #define AppDir "{userpf}\u32-local-server"
@@ -37,6 +37,24 @@ Source: "..\resources\ls.ico"; DestDir: "{app}\resources"; Flags: ignoreversion
 ; 清理旧版的双快捷方式（改名/合并入口后 Inno 不会自动删除历史 .lnk）
 Type: files; Name: "{group}\u32-local-server 控制台.lnk"
 Type: files; Name: "{group}\u32-local-server 系统托盘.lnk"
+
+[Code]
+// 升级前停服务与托盘：exe 被占用会导致覆盖安装 EBUSY 失败（自动升级链路的必经步骤）。
+// 停服务用已装 exe 的 stop 命令；托盘先通知退出（wmic 查 PID 不可靠，直接 taskkill powershell 宿主），
+// 失败不阻断安装（首次安装本就无服务/托盘）。
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+  ExePath: String;
+begin
+  Result := '';
+  ExePath := ExpandConstant('{app}\u32-ls.exe');
+  if FileExists(ExePath) then begin
+    Exec(ExePath, 'stop', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+    // 托盘按锁文件 PID 精确结束（taskkill /IM powershell.exe 会误伤无关窗口）
+    Exec(ExePath, 'tray-stop', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  end;
+end;
 
 [Icons]
 ; 单一入口：点击即启动服务 + 托盘（launch 幂等），不写 PATH

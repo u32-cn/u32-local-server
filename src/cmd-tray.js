@@ -32,6 +32,26 @@ function isTrayAlive() {
   }
 }
 
+// 精确结束托盘进程（读 tray.lock 里的 PID）：安装器升级前调用，避免覆盖 exe 时 EBUSY。
+// taskkill /IM powershell.exe 会误伤其他 PowerShell 窗口，锁文件 PID 才是可靠路径。
+function stop() {
+  if (process.platform !== 'win32') return
+  try {
+    const pid = parseInt(fs.readFileSync(TRAY_LOCK, 'utf8').trim(), 10)
+    if (pid) {
+      try {
+        process.kill(pid)
+        process.stdout.write(`[CMD-TRAY] Tray process (PID ${pid}) terminated.\n`)
+      } catch {
+        process.stdout.write(`[CMD-TRAY] Tray process (PID ${pid}) not running.\n`)
+      }
+    }
+    if (fs.existsSync(TRAY_LOCK)) fs.unlinkSync(TRAY_LOCK)
+  } catch {
+    // 锁文件不存在等场景：托盘本来就没跑，静默成功
+  }
+}
+
 function run() {
   if (process.platform !== 'win32') {
     process.stdout.write('[CMD-TRAY] System tray is Windows-only. Linux/macOS: use "u32-ls start" + browser.\n')
@@ -105,4 +125,4 @@ function run() {
   }
 }
 
-module.exports = { run }
+module.exports = { run, stop }

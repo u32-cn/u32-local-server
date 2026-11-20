@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-11-20
+
+### Added
+- ✨ Windows 安装包自动升级：新增 `u32-ls update [--check] [-y]`（查 GitHub Releases 最新版 → 下载 setup exe 到 `~/.u32-local-server/update/` → 拉起安装向导）与首页「软件更新」运维卡（`GET /api/update` 检测、`POST /api/update {action:'download'|'install'}` 触发，Origin 同源校验沿用写接口防线）；安装器加 `PrepareToInstall`（停服务 + `u32-ls tray-stop` 结束托盘）避免覆盖 exe 时 EBUSY；npm 版不受影响（提示走 npm 升级）
+- 🔔 新增 `u32-ls tray-stop`：读 `tray.lock` 里的 PID 精确结束托盘进程，清理锁文件
+- 📝 文档站首页补 Windows 下载入口：hero 区新增「下载 Windows 安装包」主按钮（GitHub Releases latest，按钮缀最新版本号徽标），快速开始区补安装包直链与 SmartScreen 提示
+
+### Changed
+- 🔧 文档站「让 AI 帮我安装」提示词瘦身：去掉「Windows 优先用免 Node 安装包，macOS/Linux 用 npm」尾巴——系统分流逻辑 llms.txt 已有，页面提示词只负责指向 URL
+
+### Docs
+- 📝 installation.md 增「自动升级（Windows 安装包版）」节；cli.md 命令表补 `update` / `tray-stop` 与升级缓存目录；home.md 补「软件更新卡」机制；llms.txt 索引同步
+
 ## [1.7.1] - 2026-11-19
 
 ### Docs
@@ -292,7 +305,7 @@ All notable changes to this project will be documented in this file.
   - 编程语言：.php, .c, .h, .cpp, .hpp, .cc, .cxx, .java, .go, .rs
 - 📝 所有新增格式均可通过浏览器直接查看内容
 
-## [Unreleased]
+## [Planned]
 
 ### Planned Features
 - 文件上传支持

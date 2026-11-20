@@ -79,7 +79,7 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     }
 
     // 写接口 Origin 校验：阻断恶意网页跨站修改配置/触发服务注册（CSRF）
-    const isWriteApi = url.pathname.startsWith('/config/api') || url.pathname === '/api/service' || url.pathname === '/api/fs' || (url.pathname.startsWith('/bridge/api/') && (req.method === 'POST' || req.method === 'DELETE'))
+    const isWriteApi = url.pathname.startsWith('/config/api') || url.pathname === '/api/service' || url.pathname === '/api/update' || url.pathname === '/api/fs' || (url.pathname.startsWith('/bridge/api/') && (req.method === 'POST' || req.method === 'DELETE'))
     if (isWriteApi && !sameOriginOk(req, req.headers.host)) {
       logger.error(`[SECURITY] Rejected cross-origin ${req.method} to ${url.pathname} (Origin: ${req.headers.origin})\n`)
       return sendPlain(res, 403, '403 Forbidden: cross-origin request rejected')
@@ -185,6 +185,20 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     if (url.pathname === '/api/service') {
       logger.debug(`[INFO] Routing to service API handler\n`)
       return handleServiceAPI(req, res)
+    }
+    if (url.pathname === '/api/update' && req.method === 'GET') {
+      // 升级状态快照（首页「软件更新」卡数据源，前端 5s 轮询同款）：
+      // { latest, updateAvailable, downloaded, downloading, progress, error }
+      // 检测与下载由服务端自动调度（启动 30s 后 + 每 6h），前端只读状态、触发安装
+      logger.debug(`[INFO] Routing to update status api\n`)
+      const update = require('./update')
+      return sendJson(res, update.status())
+    }
+    if (url.pathname === '/api/update' && req.method === 'POST') {
+      // 触发动作：action=check 手动重查（页面上「检测更新」）；action=install 拉起安装向导；
+      // action=download 手动重试下载（正常流程自动，失败重试用）
+      logger.debug(`[INFO] Routing to update API handler\n`)
+      return handleUpdateAPI(req, res)
     }
     if (url.pathname === '/api/fs') {
       logger.debug(`[INFO] Routing to fs API handler\n`)
@@ -370,6 +384,63 @@ function handleServiceAPI(req, res) {
       logger.error(`[ERROR] Failed to spawn ${action}: ${err.message}\n`)
       return sendJson(res, { ok: false, error: err.message }, 500)
     }
+  })
+}
+
+// 升级 API：POST { action: 'check' | 'download' | 'install' }
+// check：手动重查（更新内部状态并返回快照）；download：手动重试下载（正常流程自动）；
+// install：对缓存里的最新版 exe 拉起安装向导（下载就绪后页面上「安装新版本」按钮用）
+function handleUpdateAPI(req, res) {
+  if (req.method !== 'POST') {
+    return sendJson(res, { ok: false, error: 'method-not-allowed' }, 405)
+  }
+  let body = ''
+  req.on('data', chunk => body += chunk)
+  req.on('end', () => {
+    let data
+    try { data = JSON.parse(body || '{}') } catch (e) {
+      return sendJson(res, { ok: false, error: 'invalid-json' }, 400)
+    }
+    const action = data.action
+    if (action !== 'check' && action !== 'download' && action !== 'install') {
+      return sendJson(res, { ok: false, error: 'unknown-action' }, 400)
+    }
+    const update = require('./update')
+
+    if (action === 'check') {
+      update.check(false)
+        .then(s => sendJson(res, s))
+        .catch(err => sendJson(res, { ok: false, error: err.message }, 502))
+      return
+    }
+    if (action === 'download') {
+      update.downloadLatest()
+        .then(s => sendJson(res, s))
+        .catch(err => sendJson(res, { ok: false, error: err.message }, 502))
+      return
+    }
+
+    // install：优先用状态里的 downloadedFile，兜底扫缓存目录取版本最大的
+    const fs = require('fs')
+    const path = require('path')
+    let file = data.file || update.status().file
+    if (!file || !fs.existsSync(file)) {
+      file = null
+      try {
+        const candidates = fs.readdirSync(update.UPDATE_DIR).filter(n => /^u32-local-server-setup-.*\.exe$/.test(n))
+        if (candidates.length === 0) return sendJson(res, { ok: false, error: 'no-downloaded-installer' }, 400)
+        // 恒留一个的约定下通常只有一个；仍按版本最大兜底
+        candidates.sort((a, b) => update.compareVersions(
+          (a.match(/setup-(.*)\.exe$/) || [])[1] || '0',
+          (b.match(/setup-(.*)\.exe$/) || [])[1] || '0'))
+        file = path.join(update.UPDATE_DIR, candidates[candidates.length - 1])
+      } catch (err) {
+        return sendJson(res, { ok: false, error: err.message }, 500)
+      }
+    }
+    const r = update.install(file)
+    if (!r.ok) return sendJson(res, { ok: false, error: r.error }, 500)
+    return sendJson(res, r)
   })
 }
 

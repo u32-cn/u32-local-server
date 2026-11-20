@@ -46,6 +46,7 @@ Commands:
   copy-url <path>  Copy URL to clipboard                    复制URL到剪贴板
   register         Register auto-start service              注册开机自启动服务（Windows添加右键菜单）
   unregister       Unregister auto-start service            取消注册开机自启动服务
+  update [-y]      Check & download latest installer        检查并下载最新安装包（Windows 安装包版；-y 跳确认拉起安装）
   tray             Start Windows system tray icon          启动系统托盘图标（仅 Windows）
   version, -v, --version  Show version number               显示版本号
 
@@ -101,10 +102,23 @@ if (cmd === 'launch') {
   return
 }
 
+if (cmd === 'update') {
+  // Windows 安装包自动升级：查最新版 → 下载 → 拉起安装向导（-y 免确认直接装）
+  const { run } = require('./cmd-update')
+  run(process.argv.slice(3))
+  return
+}
+
 if (cmd === 'tray') {
   // Windows 系统托盘助手（仅 Windows 生效；node/SEA 共用）
   const { run } = require('./cmd-tray')
   run()
+  return
+}
+
+if (cmd === 'tray-stop') {
+  // 结束托盘进程（读 tray.lock 里的 PID）；安装器升级前调用，避免 exe 被占用
+  require('./cmd-tray').stop()
   return
 }
 
@@ -241,6 +255,10 @@ function startServer() {
     logger.info(`[SUCCESS] Server started successfully\n`)
     logger.info(`[SUCCESS] PID file written: ${PID_FILE} (PID ${process.pid})\n`)
     logger.info(`[SUCCESS] Listening on http://127.0.0.1:${config.port}\n`)
+    // 升级自动调度：启动 30s 后查新版，之后每 6h；发现新版自动后台下载缓存（仅 Windows 安装包版有实际效果）
+    try { require('./update').scheduleAuto() } catch (err) {
+      logger.error(`[UPDATE] scheduleAuto failed: ${err.message}\n`)
+    }
   })
 
   process.on('SIGINT', () => gracefulShutdown('SIGINT'))
