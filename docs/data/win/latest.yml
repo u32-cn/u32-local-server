@@ -2,5 +2,5 @@ version: 1.8.0
 path: download/win/u32-local-server-setup-1.8.0.exe
 files:
   - url: u32-local-server-setup-1.8.0.exe
-    size: 0
-    sha256: pending-ci
+    size: 24272255
+    sha256: ffcee42cdc3d39e21724eee9652b3e6e02eb0ae9fa651b62245473f74772a204
