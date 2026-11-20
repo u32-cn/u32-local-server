@@ -14,6 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### Docs
 - 📝 installation.md 增「自动升级（Windows 安装包版）」节；cli.md 命令表补 `update` / `tray-stop` 与升级缓存目录；home.md 补「软件更新卡」机制；llms.txt 索引同步
+- 📝 llms.txt 安装节重写：Windows 下载改为「GET latest.yml 取 version → 拼自域名直链」（国内稳定，CDN 回源 Releases），细节全部指向 installation.md；installation.md 下载节同步（直链首选 + GitHub 兜底），自动升级节更新为「自动下载缓存 + 就绪后安装」交互
 
 ## [1.7.1] - 2026-11-19
 

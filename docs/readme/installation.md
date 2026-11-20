@@ -48,10 +48,15 @@ npm config get prefix
 
 ## 免 Node 安装包（Windows）
 
-不需要装 Node，直接从 GitHub Releases 下载安装包双击安装：
+不需要装 Node，下载安装包双击安装（约 24MB，未签名，SmartScreen 提示选「仍要运行」）。
 
-- 最新版：<https://github.com/u32-cn/u32-local-server/releases/latest>（资产名 `u32-local-server-setup-<版本>.exe`）
+**下载（首选直链，国内稳定）：**
 
+1. GET 版本元数据：<https://u32-local-server.u32.cn/data/win/latest.yml>，取 `version` 字段（形如 `1.8.0`）
+2. 拼直链下载：`https://u32-local-server.u32.cn/download/win/u32-local-server-setup-<version>.exe`（CDN 边缘缓存回源 GitHub Releases；元数据里 `files[0].sha256` 可校验完整性）
+3. **兜底**（直链不可用时）：<https://github.com/u32-cn/u32-local-server/releases/latest>（资产名 `u32-local-server-setup-<版本>.exe`）
+
+**安装行为：**
 - 安装内容：单文件 `u32-ls.exe`（Node SEA，自带运行时），默认装到 `%LOCALAPPDATA%\Programs\u32-local-server`（用户目录，不弹 UAC）
 - **不写 PATH**。开始菜单**只有一个** `u32-local-server` 快捷方式，点击执行 `u32-ls launch`：启动服务 + 拉起托盘（两者幂等，重复点不会起第二份）
 - 安装时调用 `u32-ls register` 注册开机自启与右键菜单（HKCU），并执行 `launch` 立即启动服务与托盘；旧版双快捷方式会被安装器自动清理；卸载时 `u32-ls unregister` 清理注册表
@@ -67,7 +72,7 @@ npm config get prefix
 
 已装用户升级不用再手动下安装包，两种入口等价：
 
-- **控制台首页 → 运维 → 软件更新**：自动检测最新版（GitHub Releases），有更新时点「下载并安装」，下载完成后自动拉起安装向导，向导会先停服务与托盘再覆盖安装，配置与授权目录全部保留
-- **命令行**：`u32-ls update`（`--check` 只查版本；`-y` 免确认直接装）
+- **控制台首页 → 运维 → 软件更新**：自动检测最新版并后台下载（启动 30s 后 + 每 6h），新版就绪后卡片提示「新版已就绪」，点「安装新版本」拉起安装向导，向导会先停服务与托盘再覆盖安装，配置与授权目录全部保留
+- **命令行**：`u32-ls update`（查新版→自动下载缓存→询问是否立即安装；`--check` 只查；`-y` 免确认直接装）
 
-机制细节：版本元数据实时查 GitHub API `releases/latest`；安装包下载到 `~/.u32-local-server/update/`（同名完整文件已存在则跳过重复下载，可手动清理）；升级不影响配置——Inno Setup 覆盖安装不动 `~/.u32-local-server/` 下的用户数据。npm 版升级走 `npm i -g u32-local-server@latest`，不走这条链路。
+机制细节：版本元数据实时查 GitHub API `releases/latest`；安装包下载到 `~/.u32-local-server/update/`（缓存**恒只保留一个最新版** exe，旧版与 .part 残片自动清理）；升级不影响配置——Inno Setup 覆盖安装不动 `~/.u32-local-server/` 下的用户数据。npm 版升级走 `npm i -g u32-local-server@latest`，不走这条链路。

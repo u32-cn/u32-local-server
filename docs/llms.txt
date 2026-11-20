@@ -22,10 +22,9 @@ u32-local-server 是一个跑在本机（127.0.0.1）的 HTTP 服务，为两类
 
 ## 安装
 
-**先按系统选方案：Windows 优先用免 Node 安装包；macOS/Linux 没有安装包，用 npm 安装（Node.js ≥ 18）。** 详细说明与陷阱排查见 [安装文档](/docs/installation.md)。
+**先按系统选方案：Windows 优先用免 Node 安装包；macOS/Linux 没有安装包，用 npm 安装（Node.js ≥ 18）。**
 
-- **免 Node（仅 Windows，优先）**：从 GitHub Releases 下载 `u32-local-server-setup-<版本>.exe` 双击安装（<https://github.com/u32-cn/u32-local-server/releases/latest>），自带运行时，不写 PATH；开始菜单**唯一** `u32-local-server` 快捷方式点击即启动服务+托盘（幂等），安装即自动运行；托盘图标按服务状态置灰/激活，右键启动/停止/查看网页（只开浏览器不启动服务）/退出，约 24MB。非 Windows 不用这条。
-- **npm 包（macOS/Linux 用这条；Windows 也可选）**：确认 Node.js ≥ 18 → `npm config get prefix` 确认不属于 AI 工具私有运行时 → `npm i -g u32-local-server` → **新开普通终端**跑 `u32-ls -v` 有输出才算装好
+**Windows 安装包下载**：GET [https://u32-local-server.u32.cn/data/win/latest.yml](https://u32-local-server.u32.cn/data/win/latest.yml) 取 `version` 字段，下载 `https://u32-local-server.u32.cn/download/win/u32-local-server-setup-<version>.exe` 双击安装。**完整步骤、校验、兜底与陷阱必须先读 [安装文档](/docs/installation.md)。**
 
 ## 启动
 
