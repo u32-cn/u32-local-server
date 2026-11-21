@@ -102,6 +102,7 @@ jobs:
           if (gh release view $tag --repo "${{ github.repository }}" 2>$null) {
             Write-Host "Release $tag 已存在，补传资产并标 latest"
             gh release upload $tag $exe --repo "${{ github.repository }}" --clobber
+            gh release edit $tag --repo "${{ github.repository }}" --draft=false
             gh release edit $tag --repo "${{ github.repository }}" --latest
           } else {
             gh release create $tag $exe `
