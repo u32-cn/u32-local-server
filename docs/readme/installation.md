@@ -58,7 +58,7 @@ npm config get prefix
 
 **安装行为：**
 - 安装内容：单文件 `u32-ls.exe`（Node SEA，自带运行时），默认装到 `%LOCALAPPDATA%\Programs\u32-local-server`（用户目录，不弹 UAC）
-- **不写 PATH**。开始菜单**只有一个** `u32-local-server` 快捷方式，点击执行 `u32-ls launch`：启动服务 + 拉起托盘（两者幂等，重复点不会起第二份）
+- **不写 PATH**。开始菜单与桌面各一个 `u32-local-server` 快捷方式，点击执行 `u32-ls launch`：启动服务 + 拉起托盘（两者幂等，重复点不会起第二份）；桌面快捷方式卸载时自动清理
 - 安装时调用 `u32-ls register` 注册开机自启与右键菜单（HKCU），并执行 `launch` 立即启动服务与托盘；旧版双快捷方式会被安装器自动清理；卸载时 `u32-ls unregister` 清理注册表
 - 托盘图标右键菜单：**启动服务 / 停止服务 / 查看网页 / 退出**；左键双击 = 查看网页。「查看网页」只调默认浏览器打开首页，**不会启动服务**——服务没开就是打不开。「退出」结束托盘程序。
 - 托盘图标按服务状态切换：**服务运行中=激活**（白底红字 `LS`），**未运行=置灰**（灰字 `LS`），每 1.5s 探测端口自动更新。源文件 `resources/ls.svg`，托盘用 `resources/ls.ico` / `resources/ls-gray.ico`（16/32px）

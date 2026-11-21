@@ -8,6 +8,8 @@ Web 界面管理服务器配置；也可直接编辑配置文件 `~/.u32-local-s
 - **拒绝列表**：优先于允许列表，命中即拒绝
 - **MIME Types**：自定义扩展名 → Content-Type 映射，覆盖内置默认
 - **端口**：修改监听端口（需重启生效）
+- **重启服务**：页面顶栏按钮，重启后自动跳转新端口配置页
+- **停止服务**：页面顶栏按钮（红色），确认后停止服务——页面由服务本身提供，停止后即无法访问；重启方式：托盘菜单、开始菜单/桌面快捷方式、终端 `u32-ls start`
 
 ## 配置文件结构
 
@@ -34,5 +36,7 @@ Web 界面管理服务器配置；也可直接编辑配置文件 `~/.u32-local-s
 | `setAllowWrite` | 路径, write | 切换条目 只读/读写，即时生效 |
 | `addMime` / `removeMime` | 扩展名, type | 自定义 MIME |
 | `setPort` | port | 修改端口 |
+| `restart` | port | 重启服务（保存端口后触发） |
+| `stop` | — | 停止服务（先应答再自我终止） |
 
-安全：Host 白名单（防 DNS rebinding）+ 同源 Origin 校验（防跨站 CSRF）。
+安全：Host 白名单（防 DNS rebinding）+ 同源 Origin 校验（防跨站 CSRF）。重启/停止通过绝对路径 spawn 自身运行时执行 daemon 命令，不依赖 PATH。

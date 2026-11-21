@@ -138,6 +138,7 @@ function renderPage(config, addr) {
     </nav>
     <div style="display:flex;align-items:center;gap:8px">
       <span id="restart-notice" class="restart-notice" style="display:none">需要重启</span>
+      <button id="stop-btn" class="btn btn-danger" type="button" onclick="stopServer()">停止服务</button>
       <button id="restart-btn" class="btn btn-primary" type="button" onclick="restartServer()">重启服务</button>
     </div>
   </div>
@@ -358,6 +359,20 @@ async function restartServer() {
   if (!validPort(port)) { alert('端口必须是 1-65535 的整数'); return }
   await api('POST', { action: 'restart', port })
   showRestartingPage(port)
+}
+async function stopServer() {
+  if (!confirm('确定停止服务吗？停止后本页面将无法访问，可通过托盘图标、开始菜单快捷方式或终端 u32-ls start 重新启动。')) return
+  const result = await api('POST', { action: 'stop' })
+  if (result) showStoppedPage()
+}
+function showStoppedPage() {
+  document.body.innerHTML = '<div class="restart-page">' +
+    '<div class="restart-content">' +
+    '<h1>服务已停止</h1>' +
+    '<p>本页面由服务提供，服务停止后已无法访问。</p>' +
+    '<p>重新启动方式：托盘图标菜单、开始菜单快捷方式，或终端执行 <code>u32-ls start</code></p>' +
+    '</div>' +
+    '</div>'
 }
 function validPort(port) {
   return Number.isInteger(port) && port >= 1 && port <= 65535
@@ -592,16 +607,20 @@ function handleApi(req, res) {
 
         setTimeout(() => {
           logger.info(`[INFO] Triggering server restart...\n`)
-          const { execSync } = require('child_process')
-          try {
-            if (process.platform === 'win32') {
-              execSync('start cmd /c u32-ls restart', { stdio: 'ignore' })
-            } else {
-              execSync('u32-ls restart &', { stdio: 'ignore' })
-            }
-          } catch (err) {
-            logger.error(`[ERROR] Failed to trigger restart: ${err.message}\n`)
-          }
+          triggerDaemonCmd('restart')
+        }, 100)
+      } else if (data.action === 'stop') {
+        // 停止服务：先应答前端，再自我终止（页面由本服务提供，停止后页面即失效）
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+          'access-control-allow-headers': '*',
+        })
+        res.end(JSON.stringify({ ok: true }))
+        setTimeout(() => {
+          logger.info(`[INFO] Triggering server stop...\n`)
+          triggerDaemonCmd('stop')
         }, 100)
       } else {
         logger.error(`[CONFIG-API] ERROR: Unknown action: ${data.action}\n`)
@@ -624,6 +643,38 @@ function handleApi(req, res) {
       res.end(e.message)
     }
   })
+}
+
+// 触发 daemon 命令（restart/stop）：用绝对路径构造命令行，不经 PATH 查找。
+// spawn 自身运行时（node 直跑用 process.argv[1] 脚本绝对路径；SEA 用 exe + 命令参数）。
+// Windows 必须经 `start` 间接层：中间 cmd 立即退出，真实 daemon 进程父链断裂，
+// 否则 daemon taskkill /T 杀服务进程树时会把自己（服务进程的孩子）一并杀掉。
+// detached + unref：本服务进程被 daemon kill 后子命令仍能存活。
+function triggerDaemonCmd(cmd) {
+  const { spawn } = require('child_process')
+  const { IS_SEA } = require('./sea-assets')
+  try {
+    // SEA 模式：argv = [exe, cmd, ...]；node 直跑：argv = [node, 脚本绝对路径, cmd]
+    const target = IS_SEA
+      ? `"${process.execPath}" ${cmd}`
+      : `"${process.execPath}" "${process.argv[1]}" ${cmd}`
+    let child
+    if (process.platform === 'win32') {
+      child = spawn('cmd.exe', ['/d', '/s', '/c', `start "" ${target}`], {
+        detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true
+      })
+    } else {
+      // 非 Windows：daemon 用 SIGTERM kill 单进程，无进程树问题，直接 spawn
+      const args = IS_SEA ? [cmd] : [process.argv[1], cmd]
+      child = spawn(process.execPath, args, { detached: true, stdio: 'ignore' })
+    }
+    child.on('error', (err) => {
+      logger.error(`[ERROR] Failed to trigger ${cmd}: ${err.message}\n`)
+    })
+    child.unref()
+  } catch (err) {
+    logger.error(`[ERROR] Failed to trigger ${cmd}: ${err.message}\n`)
+  }
 }
 
 function serve(req, res) {

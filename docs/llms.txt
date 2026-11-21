@@ -26,7 +26,7 @@
 - [浏览器桥 /bridge](/docs/bridge.md) - 页面注册 → AI 下发指令同步等回包；大产物 HTTP 直传落盘；多实例用 ID短码指定
 - [桥连接机制](/docs/bridge-connection-lifecycle.md) - 心跳、判死时序；排查桥不在线先读这篇
 - [文件选择器 /picker](/docs/picker.md) - 网页选择器，iframe 嵌入；引导页 /picker-guide，演示 /picker-demo
-- [配置管理 /config](/docs/config.md) - 允许/拒绝列表、MIME、端口，即时生效
+- [配置管理 /config](/docs/config.md) - 允许/拒绝列表、MIME、端口，即时生效；顶栏可重启/停止服务（重启不依赖 PATH）
 - [运行状态 /status](/docs/status.md) - 只读指标页 + `GET /status/api`；不含敏感信息
 
 ## 全局约定
