@@ -127,6 +127,8 @@ jobs:
           git push origin HEAD:refs/heads/main
 
       - name: Wait for Pages deployment
+        env:
+          GH_TOKEN: ${{ github.token }}   # 轮询 pages builds API 必需，缺失时状态恒为空
         shell: pwsh
         run: |
           # 等 Pages 部署完成（最长 5 分钟），保证下载直链即刻可用
