@@ -2,6 +2,6 @@ version: 1.8.1
 path: download/win/u32-local-server-setup-1.8.1.exe
 files:
   - url: u32-local-server-setup-1.8.1.exe
-    size: 24272105
-    sha256: 5f6c32e542a6e831a2dff8552b92c08fe119ace260e19039184f8111b28c3c0d
+    size: 24272095
+    sha256: 69e2006dc35cfacd6aae14da37ada88f5eb132dfaddb1be1a67b501f2f846113
 
