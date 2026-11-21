@@ -1,6 +1,6 @@
 {
   "name": "u32-local-server",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Local HTTP file server and proxy",
   "main": "src/index.js",
   "bin": {

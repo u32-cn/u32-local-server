@@ -3,7 +3,7 @@
 ; 需先运行 node scripts/build-icon.js 和 node scripts/build-sea.js
 
 #define AppName "u32-local-server"
-#define AppVersion "1.8.1"
+#define AppVersion "1.8.2"
 #define AppPublisher "vtxf"
 #define AppExeName "u32-ls.exe"
 #define AppDir "{userpf}\u32-local-server"
@@ -61,10 +61,10 @@ begin
 end;
 
 [Icons]
-; 单一入口：点击即启动服务 + 托盘（launch 幂等），不写 PATH
+; 单一入口：open = 启动服务（幂等）+ 打开浏览器首页；服务已在跑则直接开页面。不写 PATH
 ; 桌面快捷方式：{autodesktop} 在 PrivilegesRequired=lowest 下为当前用户桌面，无 UAC
-Name: "{group}\u32-local-server"; Filename: "{app}\{#AppExeName}"; Parameters: "launch"; IconFilename: "{app}\resources\ls.ico"
-Name: "{autodesktop}\u32-local-server"; Filename: "{app}\{#AppExeName}"; Parameters: "launch"; IconFilename: "{app}\resources\ls.ico"
+Name: "{group}\u32-local-server"; Filename: "{app}\{#AppExeName}"; Parameters: "open"; IconFilename: "{app}\resources\ls.ico"
+Name: "{autodesktop}\u32-local-server"; Filename: "{app}\{#AppExeName}"; Parameters: "open"; IconFilename: "{app}\resources\ls.ico"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"; IconFilename: "{app}\resources\ls.ico"
 
 [Run]
