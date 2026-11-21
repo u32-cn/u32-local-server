@@ -21,7 +21,7 @@
       <a href="#docs" data-u32-name="nav-docs">文档</a>
       <a href="#start" data-u32-name="nav-start">安装</a>
       <a class="gh" href="https://github.com/u32-cn/u32-local-server" data-u32-name="nav-github">GitHub</a>
-      <span class="ver" data-u32-name="nav-version">v1.7.0</span>
+      <span class="ver" id="nav-version" data-u32-name="nav-version">v1.8.0</span>
     </nav>
   </div>
 </header>
@@ -235,6 +235,8 @@ var AI_INSTALL_PROMPT = '读取 https://u32-local-server.u32.cn/llms.txt ，根�
     state = data;
     var badge = document.getElementById('dl-win-ver');
     if (badge) { badge.textContent = ' ' + data.version; badge.hidden = false; }
+    var navVer = document.getElementById('nav-version');
+    if (navVer) navVer.textContent = 'v' + data.version; // 导航版本跟随 latest，硬编码值仅作 JS 失效兜底
     document.querySelectorAll('[data-dl="win"]').forEach(function(a){
       a.href = data.main; // JS 失效兜底：初始 href 是 releases/latest，元数据就绪后换直链
       a.target = '_blank'; a.rel = 'noopener'; a.dataset.ready = '1';
