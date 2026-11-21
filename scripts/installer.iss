@@ -3,7 +3,7 @@
 ; 需先运行 node scripts/build-icon.js 和 node scripts/build-sea.js
 
 #define AppName "u32-local-server"
-#define AppVersion "1.8.0"
+#define AppVersion "1.8.1"
 #define AppPublisher "vtxf"
 #define AppExeName "u32-ls.exe"
 #define AppDir "{userpf}\u32-local-server"
@@ -38,6 +38,10 @@ Source: "..\resources\ls.ico"; DestDir: "{app}\resources"; Flags: ignoreversion
 Type: files; Name: "{group}\u32-local-server 控制台.lnk"
 Type: files; Name: "{group}\u32-local-server 系统托盘.lnk"
 
+[UninstallDelete]
+; 卸载时清理桌面快捷方式
+Type: files; Name: "{autodesktop}\u32-local-server.lnk"
+
 [Code]
 // 升级前停服务与托盘：exe 被占用会导致覆盖安装 EBUSY 失败（自动升级链路的必经步骤）。
 // 停服务用已装 exe 的 stop 命令；托盘先通知退出（wmic 查 PID 不可靠，直接 taskkill powershell 宿主），
@@ -58,7 +62,9 @@ end;
 
 [Icons]
 ; 单一入口：点击即启动服务 + 托盘（launch 幂等），不写 PATH
+; 桌面快捷方式：{autodesktop} 在 PrivilegesRequired=lowest 下为当前用户桌面，无 UAC
 Name: "{group}\u32-local-server"; Filename: "{app}\{#AppExeName}"; Parameters: "launch"; IconFilename: "{app}\resources\ls.ico"
+Name: "{autodesktop}\u32-local-server"; Filename: "{app}\{#AppExeName}"; Parameters: "launch"; IconFilename: "{app}\resources\ls.ico"
 Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"; IconFilename: "{app}\resources\ls.ico"
 
 [Run]

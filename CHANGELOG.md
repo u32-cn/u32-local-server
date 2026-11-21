@@ -2,7 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.8.1] - 2026-11-21
+
+### Added
+- ✨ 配置页顶栏新增「停止服务」按钮（红色，确认后触发；停止后页面显示重启指引——服务停了页面即失效，页面内不做「启动」按钮）；重启/停止改经 `triggerDaemonCmd`：spawn 自身运行时（node 直跑用脚本绝对路径，SEA 用 exe）+ Windows `start` 间接层防 daemon `taskkill /T` 误杀自身，彻底去掉对 PATH 中 `u32-ls` 的依赖
+- ✨ Windows 安装包新增桌面快捷方式（`{autodesktop}`，当前用户桌面无 UAC，指向 `launch` 入口），卸载时自动清理
 
 ### Changed
 - 🔧 发版自动化补全：`release.yml` 新增 `publish-npm` job，push tag 后安装包发布成功即自动 `npm publish --provenance`（依赖仓库 secret `NPM_TOKEN`）；README 发版流程同步——**tag 必须推到 github remote**（origin 是 codeup 镜像，不触发 Actions）
