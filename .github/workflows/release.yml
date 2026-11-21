@@ -98,11 +98,18 @@ jobs:
         run: |
           $tag = "${{ github.ref_name }}"
           $exe = "dist/u32-local-server-setup-$($tag.TrimStart('v')).exe"
-          gh release create $tag $exe `
-            --repo "${{ github.repository }}" `
-            --title $tag `
-            --notes-file release-notes.md `
-            --latest
+          # 幂等：Release 已存在（如重跑/重打 tag）则不重建，只补传资产并标 latest
+          if (gh release view $tag --repo "${{ github.repository }}" 2>$null) {
+            Write-Host "Release $tag 已存在，补传资产并标 latest"
+            gh release upload $tag $exe --repo "${{ github.repository }}" --clobber
+            gh release edit $tag --repo "${{ github.repository }}" --latest
+          } else {
+            gh release create $tag $exe `
+              --repo "${{ github.repository }}" `
+              --title $tag `
+              --notes-file release-notes.md `
+              --latest
+          }
 
       # 官网下载走 EdgeOne 直链回源 Releases（/download/win/* 路径规则），exe 不进仓库；
       # 这里只提交 latest.yml 版本元数据（Pages 伺服，官网按钮读它显示版本号与直链文件名）。
