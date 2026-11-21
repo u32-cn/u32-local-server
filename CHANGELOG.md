@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+- 🔧 发版自动化补全：`release.yml` 新增 `publish-npm` job，push tag 后安装包发布成功即自动 `npm publish --provenance`（依赖仓库 secret `NPM_TOKEN`）；README 发版流程同步——**tag 必须推到 github remote**（origin 是 codeup 镜像，不触发 Actions）
+
+### Docs
+- 📝 文档站首页导航版本号不再硬编码脱节：`apply()` 同步导航版本为 latest.yml 解析值，硬编码仅作 JS 失效兜底
+
 ## [1.8.0] - 2026-11-20
 
 ### Added

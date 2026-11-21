@@ -59,6 +59,12 @@
 - 快捷方式改名/合并后，旧 `.lnk` 不会自动消失，须在 `[InstallDelete]` 显式删除历史名称
 - 单快捷方式指向 `launch`；`[Run]` 里 `register` + `launch` 分两行
 
+## 发版纪律
+
+- **tag 必须显式推到 github remote**：`git push github vX.Y.Z`。origin（codeup）只是镜像，**不触发 GitHub Actions**；tag 不上 GitHub 就没有自动打包、GitHub Release、npm publish、latest.yml 更新
+- 发版全自动链路（tag 触发 `release.yml`）：Windows 安装包构建 → GitHub Release → `publish-npm` job 自动 `npm publish --provenance`（依赖仓库 secret `NPM_TOKEN`）→ latest.yml 提交回 main 触发 Pages 部署。本地无需打包、无需手动 publish
+- tag 与 `package.json` version 不一致会 fail；npm 包进 `files` 白名单改动属 `package.json` 变更，先征得同意
+
 ## 审批要求
 
 - 修改、提交、发布（commit / push / npm publish / 打 tag）前先向用户说明方案，经同意后执行

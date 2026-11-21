@@ -14,8 +14,7 @@ permissions:
 jobs:
   build-and-release:
     runs-on: windows-latest
-    steps:
-      - name: Checkout
+    steps:      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Setup Node
@@ -138,3 +137,26 @@ jobs:
             if ($page -eq 'built') { $ok = $true; break }
           }
           if (-not $ok) { Write-Warning 'Pages 部署状态未确认（非致命，直链稍后自动可用）' }
+
+  # npm 发布：tag 校验已在上一个 job 完成，这里复用 checkout 直接 publish
+  # 依赖仓库 secret NPM_TOKEN（Automation 类型 token，npmjs → Access Tokens 生成）
+  publish-npm:
+    runs-on: ubuntu-latest
+    needs: build-and-release   # 安装包发布成功后再发 npm，任一失败不单独出包
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: npm ci --registry=https://registry.npmjs.org
+
+      - name: Publish to npm
+        run: npm publish --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

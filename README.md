@@ -523,8 +523,8 @@ resources/            # ls.svg 源图 + ls.ico / ls-gray.ico 两态托盘图标
 2. `CHANGELOG.md` 顶部新增 `[X.Y.Z] - 日期` 段，按 Added / Changed / Fixed / Docs 分类
 3. 提交 `chore(release): vX.Y.Z——<改动摘要>`
 4. 打 tag `vX.Y.Z` 并推送
-5. `npm publish`（`publishConfig` 已指向 npmjs.org；`files` 白名单含 `src/`、`public/`、`docs/readme/`、`docs/llms.txt`、`docs/index.html`、`docs/reader.html`、`docs/assets/`、`package.json`、`README.md`、`CHANGELOG.md`；`test/`、`LICENSE` 不进 npm 包）
-6. **Windows 免 Node 包（自动）**：推送 tag 即自动构建并发 GitHub Release——`.github/workflows/release.yml` 在 `windows-latest` runner 上跑 icon/SEA/Inno 全链路（tag 与 `package.json` version 不一致会 fail；Release notes 取 CHANGELOG 对应版本段），产物挂 `https://github.com/u32-cn/u32-local-server/releases/latest`。**只需 `git push <remote> vX.Y.Z`，本地无需打包**；手动打包流程保留备用：`node scripts/build-icon.js` → `node scripts/build-sea.js`（产出 `dist/u32-ls.exe`）→ `ISCC.exe scripts/installer.iss`。SEA 不支持交叉编译；**仅提供 Windows 免 Node 包；Linux/macOS 不出安装包，用 npm 安装（Node.js ≥ 18）**
+5. **npm publish（自动）**：同一 tag 触发 `publish-npm` job（`release.yml` 第二个 job），安装包发布成功后自动 `npm publish --provenance` 到 npmjs.org；依赖仓库 secret `NPM_TOKEN`（npmjs Access Tokens 生成 Automation 类型 token 后配到 GitHub 仓库 Secrets，一次性配置）。`files` 白名单含 `src/`、`public/`、`docs/readme/`、`docs/llms.txt`、`docs/index.html`、`docs/reader.html`、`docs/assets/`、`package.json`、`README.md`、`CHANGELOG.md`；`test/`、`LICENSE` 不进 npm 包
+6. **Windows 免 Node 包 + npm 发布（自动）**：推送 tag 即自动构建并发布——`.github/workflows/release.yml` 在 `windows-latest` runner 上跑 icon/SEA/Inno 全链路（tag 与 `package.json` version 不一致会 fail；Release notes 取 CHANGELOG 对应版本段），产物挂 `https://github.com/u32-cn/u32-local-server/releases/latest`；随后 `publish-npm` job 自动发布 npm 包。**务必 `git push github vX.Y.Z` 把 tag 推到 GitHub（origin 是 codeup 镜像，不触发 Actions），本地无需打包也无需手动 publish**；手动打包/发布流程保留备用：`node scripts/build-icon.js` → `node scripts/build-sea.js`（产出 `dist/u32-ls.exe`）→ `ISCC.exe scripts/installer.iss` / `npm publish`。SEA 不支持交叉编译；**仅提供 Windows 免 Node 包；Linux/macOS 不出安装包，用 npm 安装（Node.js ≥ 18）**
 
 ### 相关文档
 
