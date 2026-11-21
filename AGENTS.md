@@ -63,6 +63,7 @@
 
 - **tag 必须显式推到 github remote**：`git push github vX.Y.Z`。origin（codeup）只是镜像，**不触发 GitHub Actions**；tag 不上 GitHub 就没有自动打包、GitHub Release、npm publish、latest.yml 更新
 - 发版全自动链路（tag 触发 `release.yml`）：Windows 安装包构建 → GitHub Release → `publish-npm` job 自动 `npm publish --provenance`（依赖仓库 secret `NPM_TOKEN`）→ latest.yml 提交回 main 触发 Pages 部署。本地无需打包、无需手动 publish
+- **`NPM_TOKEN` secret 前置条件**（2026-11-21 引入 publish-npm 时确定，**尚未配置**）：npmjs.com → Access Tokens → 生成 **Automation** 类型 token → GitHub 仓库 `u32-cn/u32-local-server` → Settings → Secrets and variables → Actions → 新增 `NPM_TOKEN`。未配置时打 tag，`publish-npm` job 必失败（安装包发布不受影响）。AI 检测到 publish-npm 失败且日志报 token/认证错误时，先检查此项
 - tag 与 `package.json` version 不一致会 fail；npm 包进 `files` 白名单改动属 `package.json` 变更，先征得同意
 
 ## 审批要求
