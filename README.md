@@ -4,6 +4,20 @@
 
 文档站：<https://u32-local-server.u32.cn/>（站点主页即仓库 `docs/` 目录下的 `index.html`，`docs/` 就是站点根）
 
+## 预览
+
+| 首页（控制台） | 配置页面 |
+|---|---|
+| ![首页](docs/assets/screenshots/home.jpg) | ![配置页面](docs/assets/screenshots/config.jpg) |
+
+| 文件选择器 | 选择器演示页 |
+|---|---|
+| ![文件选择器](docs/assets/screenshots/picker.jpg) | ![选择器演示页](docs/assets/screenshots/picker-demo.jpg) |
+
+| 运行状态 | 浏览器桥状态 |
+|---|---|
+| ![运行状态](docs/assets/screenshots/status.jpg) | ![浏览器桥状态](docs/assets/screenshots/bridge.jpg) |
+
 ## 两个核心用途
 
 ### 一、让 Web 应用安全地使用本机文件
