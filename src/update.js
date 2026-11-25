@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 // Windows 安装包自动升级（核心模块）：
-// - check：GET GitHub API latest release，比对当前版本
+// - check：GET 版本元数据 latest.yml（EdgeOne CDN，与公网文档站同一条链路），比对当前版本
 // - 自动调度：服务启动 30s 后首次 check，之后每 6h 一次；发现新版且本地无对应缓存 → 自动后台下载
 // - 缓存约束：~/.u32-local-server/update/ 恒等于「恰好一个 = 最新版」的 setup exe（或空），
 //   下载前先清掉旧版本 exe 与 .part 残片
@@ -17,8 +17,10 @@ const https = require('https')
 
 const PKG = require('../package.json')
 const VERSION = PKG.version
-const REPO = 'u32-cn/u32-local-server'
-const API_URL = `https://api.github.com/repos/${REPO}/releases/latest`
+// 唯一下载链路：EdgeOne CDN（与公网文档站 docs/index.html 同一条），不再走 GitHub API/直链
+const SITE_BASE = 'https://u32-local-server.u32.cn'
+const LATEST_YML_URL = `${SITE_BASE}/data/win/latest.yml`
+const DOWNLOAD_BASE = `${SITE_BASE}/download/win`
 const UPDATE_DIR = path.join(os.homedir(), '.u32-local-server', 'update')
 const CHECK_FIRST_DELAY_MS = 30 * 1000      // 启动后首次检测延迟
 const CHECK_INTERVAL_MS = 6 * 3600 * 1000   // 周期检测间隔 6h
@@ -109,8 +111,7 @@ function parsePsHeaders(out) {
   return h
 }
 
-// 统一 https GET：跟随重定向（GitHub 302 到 release-assets 域）；
-// TLS 证书校验失败（本机 HTTPS MITM 代理）时 Windows 下降级走 PowerShell 系统证书库重试
+// 统一 https GET：跟随重定向；TLS 证书校验失败（本机 HTTPS MITM 代理）时 Windows 下降级走 PowerShell 系统证书库重试
 function fetchUrl(url, headers, _isRetry) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: headers || {} }, (res) => {
@@ -155,7 +156,7 @@ function tlsFallback(url, headers) {
   })
 }
 
-// 下载专用：优先 Node https 流式落盘；TLS 失败降级 PowerShell 落盘（含重定向到 release-assets 域的场景）
+// 下载专用：优先 Node https 流式落盘；TLS 失败降级 PowerShell 落盘
 function fetchToFile(url, headers, destPath) {
   return fetchUrl(url, headers).then(res => ({ res, viaFallback: false })).catch(err => {
     if (!isTlsError(err)) throw err
@@ -163,16 +164,12 @@ function fetchToFile(url, headers, destPath) {
   })
 }
 
-function getJson(url) {
-  return fetchUrl(url, {
-    'User-Agent': 'u32-local-server-updater',
-    'Accept': 'application/vnd.github+json',
-  }).then(res => new Promise((resolve, reject) => {
+// 读取文本响应（latest.yml 用）
+function getText(url) {
+  return fetchUrl(url, { 'User-Agent': 'u32-local-server-updater' }).then(res => new Promise((resolve, reject) => {
     let body = ''
     res.on('data', c => body += c)
-    res.on('end', () => {
-      try { resolve(JSON.parse(body)) } catch (e) { reject(e) }
-    })
+    res.on('end', () => resolve(body))
     res.on('error', reject)
   }))
 }
@@ -215,18 +212,19 @@ function cachedFileFor(version) {
   return null
 }
 
-// 查最新版 + 找 setup exe 资产（返回裸信息，不动状态）
+// 查最新版：读版本元数据 latest.yml（Pages 站点静态文件，与文档站首页同源同链路）
 async function fetchLatest() {
-  const rel = await getJson(API_URL)
-  const latest = rel.tag_name
-  const asset = (rel.assets || []).find(a => /^u32-local-server-setup-.*\.exe$/.test(a.name))
-  if (!asset) throw new Error('latest-release-has-no-installer')
+  const text = await getText(LATEST_YML_URL)
+  const version = (text.match(/^version:\s*(\S+)/m) || [])[1]
+  const file = (text.match(/^\s*-\s*url:\s*(\S+)/m) || [])[1] || (text.match(/^path:\s*(\S+)/m) || [])[1]
+  if (!version || !file) throw new Error('latest.yml parse failed')
+  const assetName = file.split('/').pop()
+  const latest = 'v' + version
   return {
     latest,
     updateAvailable: compareVersions(latest, VERSION) > 0,
-    downloadUrl: asset.browser_download_url,
-    assetName: asset.name,
-    size: asset.size,
+    downloadUrl: `${DOWNLOAD_BASE}/${assetName}`,
+    assetName,
   }
 }
 

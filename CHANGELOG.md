@@ -4,6 +4,10 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.11.0] - 2026-11-25
+
+- 🔁 自动升级链路与文档站下载统一：`update.js` 弃用 GitHub API `releases/latest`，版本元数据与安装包下载全部改走 EdgeOne CDN（`/data/win/latest.yml` + `/download/win/<file>`），全用户同一条链路
+
 ## [1.10.1] - 2026-11-25
 
 ### Fixed

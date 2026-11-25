@@ -75,4 +75,4 @@ npm config get prefix
 - **控制台首页 → 运维 → 软件更新**：自动检测最新版并后台下载（启动 30s 后 + 每 6h），新版就绪后卡片提示「新版已就绪」，点「安装新版本」拉起安装向导，向导会先停服务与托盘再覆盖安装，配置与授权目录全部保留
 - **命令行**：`u32-ls update`（查新版→自动下载缓存→询问是否立即安装；`--check` 只查；`-y` 免确认直接装）
 
-机制细节：版本元数据实时查 GitHub API `releases/latest`；安装包下载到 `~/.u32-local-server/update/`（缓存**恒只保留一个最新版** exe，旧版与 .part 残片自动清理）；升级不影响配置——Inno Setup 覆盖安装不动 `~/.u32-local-server/` 下的用户数据。npm 版升级走 `npm i -g u32-local-server@latest`，不走这条链路。
+机制细节：版本元数据实时查 `https://u32-local-server.u32.cn/data/win/latest.yml`（EdgeOne CDN，与文档站下载按钮同一条链路）；安装包从 `https://u32-local-server.u32.cn/download/win/<文件名>` 下载到 `~/.u32-local-server/update/`（缓存**恒只保留一个最新版** exe，旧版与 .part 残片自动清理）；升级不影响配置——Inno Setup 覆盖安装不动 `~/.u32-local-server/` 下的用户数据。npm 版升级走 `npm i -g u32-local-server@latest`，不走这条链路。
