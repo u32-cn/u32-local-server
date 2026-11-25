@@ -40,13 +40,82 @@ const state = {
 let seaMode = false
 try { seaMode = require('./sea-assets').IS_SEA } catch { seaMode = false }
 
-// 统一 https GET：跟随重定向（GitHub 302 到 release-assets 域）
-function fetchUrl(url, headers) {
+// TLS 证书类错误码（本机有 SteamTools 等系统级 HTTPS MITM 时，Node 内置 CA 不认其自签证书）
+const TLS_ERR_CODES = new Set([
+  'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
+  'SELF_SIGNED_CERT_IN_CHAIN',
+  'DEPTH_ZERO_SELF_SIGNED_CERT',
+  'CERT_HAS_EXPIRED',
+  'UNABLE_TO_GET_ISSUER_CERT_LOCALLY',
+])
+function isTlsError(err) {
+  return !!(err && (TLS_ERR_CODES.has(err.code) || /certificate/i.test(String(err.message))))
+}
+
+// 降级通道：Windows 下走 PowerShell（schannel 用系统证书库，能认 SteamTools 等本机代理证书）。
+// - toMemory=true：小体积 JSON 响应 → 下载到临时文件再读入内存
+// - 否则：流式落盘 destPath（.part 下载用），返回 { statusCode, headers }
+function fetchViaPowerShell(url, headers, destPath, toMemory) {
+  return new Promise((resolve, reject) => {
+    const isWin = process.platform === 'win32'
+    if (!isWin) return reject(new Error('tls-error-no-fallback: ' + url))
+    const tmp = destPath || path.join(os.tmpdir(), `u32-ls-fetch-${Date.now()}-${Math.random().toString(36).slice(2)}`)
+    const psScript = [
+      '$ProgressPreference=\'SilentlyContinue\'',
+      `[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12`,
+      `$h=@{}`,
+      headers && Object.keys(headers).length ? `foreach($k in ${JSON.stringify(Object.keys(headers))}){$h[$k]=${JSON.stringify(headers)}[$k]}` : '',
+      `$r=Invoke-WebRequest -UseBasicParsing -Uri '${url.replace(/'/g, '\'\'')}' -Headers $h -OutFile '${tmp.replace(/'/g, '\'\'')}'`,
+      `Write-Output ("STATUS=" + [int]$r.StatusCode)`,
+      `$ct=$r.Headers['Content-Type']; if($ct){Write-Output ("CONTENT_TYPE=" + ($ct -join ','))}`,
+      `$cl=$r.Headers['Content-Length']; if($cl){Write-Output ("CONTENT_LENGTH=" + ($cl -join ','))}`,
+    ].filter(Boolean).join('; ')
+    const { spawn } = require('child_process')
+    const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psScript], {
+      windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    let out = '', errOut = ''
+    child.stdout.on('data', c => out += c)
+    child.stderr.on('data', c => errOut += c)
+    const timer = setTimeout(() => child.kill(), 120 * 1000)
+    child.on('error', (e) => { clearTimeout(timer); reject(e) })
+    child.on('close', (code) => {
+      clearTimeout(timer)
+      const m = out.match(/STATUS=(\d+)/)
+      const status = m ? parseInt(m[1], 10) : 0
+      if (code !== 0 || status === 0) {
+        return reject(new Error('tls-fallback-failed: ' + (errOut.trim() || ('exit ' + code))))
+      }
+      if (status >= 300 && status < 400) {
+        return reject(new Error('HTTP ' + status + ' (fallback) for ' + url))
+      }
+      if (status !== 200) {
+        return reject(new Error('HTTP ' + status + ' (fallback) for ' + url))
+      }
+      if (toMemory) {
+        try { resolve({ statusCode: status, body: fs.readFileSync(tmp), headers: parsePsHeaders(out) }) }
+        finally { try { fs.unlinkSync(tmp) } catch {} }
+      } else {
+        resolve({ statusCode: status, headers: parsePsHeaders(out) })
+      }
+    })
+  })
+}
+function parsePsHeaders(out) {
+  const h = {}
+  const cl = out.match(/CONTENT_LENGTH=(\d+)/)
+  if (cl) h['content-length'] = cl[1]
+  return h
+}
+
+// 统一 https GET：跟随重定向（GitHub 302 到 release-assets 域）；
+// TLS 证书校验失败（本机 HTTPS MITM 代理）时 Windows 下降级走 PowerShell 系统证书库重试
+function fetchUrl(url, headers, _isRetry) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: headers || {} }, (res) => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume()
-        return resolve(fetchUrl(res.headers.location, headers))
+        return resolve(fetchUrl(res.headers.location, headers, _isRetry))
       }
       if (res.statusCode !== 200) {
         res.resume()
@@ -54,8 +123,42 @@ function fetchUrl(url, headers) {
       }
       resolve(res)
     })
-    req.on('error', reject)
+    req.on('error', (err) => {
+      if (!_isRetry && isTlsError(err)) {
+        resolve(tlsFallback(url, headers))
+      } else {
+        reject(err)
+      }
+    })
     req.setTimeout(15000, () => req.destroy(new Error('timeout: ' + url)))
+  })
+}
+
+// TLS 降级入口：把 fetchUrl 的响应接口（Node res 流）适配成两种用法
+// - getJson 场景：内存读 body
+// - downloadLatest 场景：流式写文件
+function tlsFallback(url, headers) {
+  // 下载场景由 downloadLatest 单独处理（需要流式落盘），这里只服务内存读取
+  return fetchViaPowerShell(url, headers, null, true).then(r => {
+    // 模拟 res 最小接口：getJson 只用 data/end/error 事件
+    return {
+      statusCode: r.statusCode,
+      headers: r.headers,
+      on(ev, cb) {
+        if (ev === 'data') cb(r.body)
+        if (ev === 'end') cb()
+        return this
+      },
+      resume() {},
+    }
+  })
+}
+
+// 下载专用：优先 Node https 流式落盘；TLS 失败降级 PowerShell 落盘（含重定向到 release-assets 域的场景）
+function fetchToFile(url, headers, destPath) {
+  return fetchUrl(url, headers).then(res => ({ res, viaFallback: false })).catch(err => {
+    if (!isTlsError(err)) throw err
+    return fetchViaPowerShell(url, headers, destPath, false).then(r => ({ res: null, viaFallback: true, headers: r.headers }))
   })
 }
 
@@ -180,7 +283,16 @@ async function downloadLatest(preFetched) {
     pruneCache(null)
     const dest = path.join(UPDATE_DIR, info.assetName)
     const part = dest + '.part'
-    const res = await fetchUrl(info.downloadUrl, { 'User-Agent': 'u32-local-server-updater' })
+    const { res, viaFallback, headers: fbHeaders } = await fetchToFile(info.downloadUrl, { 'User-Agent': 'u32-local-server-updater' }, part)
+    if (viaFallback) {
+      // PowerShell 降级：文件已落盘，直接走原子改名
+      fs.renameSync(part, dest)
+      state.downloading = false
+      state.progress = 100
+      state.downloaded = true
+      state.downloadedFile = dest
+      return status()
+    }
     const total = parseInt(res.headers['content-length'] || '0', 10)
     await new Promise((resolve, reject) => {
       const out = fs.createWriteStream(part)

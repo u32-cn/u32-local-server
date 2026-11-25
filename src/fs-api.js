@@ -29,7 +29,7 @@ function checkPath(raw, config, mode = 'write') {
   const allowed = mode === 'write' ? isWritable(p, config) : isAllowed(p, config)
   if (!allowed) {
     if (!isAllowed(p, config)) {
-      return { error: `路径不在允许列表内: ${raw}`, code: 403 }
+      return { error: `路径不在允许列表内: ${raw}。请执行 u32-ls access 弹窗，由用户确认后授权；AI 禁止直接改配置`, code: 403 }
     }
     return { error: `路径为只读，不允许写操作: ${raw}`, code: 403 }
   }

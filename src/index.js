@@ -28,6 +28,7 @@ if (cmd === '-h' || cmd === '--help' || cmd === 'help') {
   • 文件服务          通过 HTTP 访问本地文件系统
   • CORS 代理         绕过跨域限制，代理请求任意 URL
   • 权限控制          允许列表/拒绝列表保护文件访问
+  • 访问规则授权      u32-ls access 弹窗，由用户增删 allow/deny（AI 禁止直接改配置）
   • 配置管理          Web 界面可视化配置
   • 浏览器桥          AI 与浏览器页面间长轮询消息桥
   • 跨平台支持        Windows/Linux/macOS
@@ -44,6 +45,7 @@ Commands:
   url <path>       Get the URL for a local file/directory  获取本地文件/目录的URL
   open [path]      Open home page or file in browser       打开首页或指定文件（无参数打开首页）
   copy-url <path>  Copy URL to clipboard                    复制URL到剪贴板
+  access [path]    Open consent page to manage allow/deny   弹窗由用户增删访问规则（唯一写入口）
   register         Register auto-start service              注册开机自启动服务（Windows添加右键菜单）
   unregister       Unregister auto-start service            取消注册开机自启动服务
   update [-y]      Check & download latest installer        检查并下载最新安装包（Windows 安装包版；-y 跳确认拉起安装）
@@ -92,6 +94,14 @@ if (cmd === 'register' || cmd === 'unregister') {
 if (cmd === 'clear-artifacts') {
   // 手动清空桥产物临时目录（第三层清空：用户随时可清；路径自带 tmp/ 临时语义）
   require('./artifacts').clearFromCli()
+  return
+}
+
+if (cmd === 'access') {
+  // 访问规则授权弹窗：AI 只能请求弹窗，由用户在浏览器里增删 allow/deny 后落盘。
+  // 这是应用内唯一的访问规则写入口，禁止程序化写配置。
+  const { run } = require('./cmd-access')
+  run(process.argv.slice(3))
   return
 }
 

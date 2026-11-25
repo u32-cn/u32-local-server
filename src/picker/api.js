@@ -88,7 +88,7 @@ function handleLs(res, url, config) {
     return sendJson(res, 200, { ok: true, roots: getRoots(config) })
   }
   if (!isAllowed(dirPath, config)) {
-    return sendJson(res, 403, { ok: false, error: '路径不在允许列表内' })
+    return sendJson(res, 403, { ok: false, error: '路径不在允许列表内，请执行 u32-ls access 弹窗由用户授权；AI 禁止直接改配置' })
   }
   let stat
   try {
@@ -147,7 +147,7 @@ function handleStat(res, url, config) {
   }
   const p = normalizeDrive(resolvePath(raw))
   if (!isAllowed(p, config)) {
-    return sendJson(res, 403, { ok: false, error: '路径不在允许列表内' })
+    return sendJson(res, 403, { ok: false, error: '路径不在允许列表内，请执行 u32-ls access 弹窗由用户授权；AI 禁止直接改配置' })
   }
   let st
   try {

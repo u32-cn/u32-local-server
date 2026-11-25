@@ -1,8 +1,10 @@
-const { loadConfig, saveConfig, resolvePath } = require('./config')
+const { loadConfig, saveConfig } = require('./config')
 const logger = require('./logger')
-const fs = require('fs')
 const { escapeHtml } = require('./utils')
 const PACKAGE_JSON = require('../package.json')
+
+// 访问规则：新增只能经 `u32-ls access` 弹窗；删除（收紧权限）可在本页直接操作。
+const ACCESS_WRITE_GUIDE = '禁止直接编辑配置文件或调用写配置的 HTTP 接口。新增访问规则必须执行 u32-ls access 打开浏览器确认页，由用户点「允许」后才会写入；删除允许规则可在本页直接操作。'
 
 function renderPage(config, addr) {
   // 存储值即 resolvePath 后的绝对路径，直接展示，不做 ~ 反向转换
@@ -16,10 +18,10 @@ function renderPage(config, addr) {
   const allowHtml = display.file.access.allow.map(e => {
     const p = typeof e === 'string' ? e : e.path
     const writable = typeof e === 'string' ? true : e.write !== false
-    return `<div class="rule" data-type="allow" data-path="${escapeHtml(p)}" data-write="${writable}"><code>${escapeHtml(p)}</code><div class="rule-actions"><button class="mode-btn" type="button">${writable ? '读写' : '只读'}</button><button class="visit-btn" type="button">访问</button><button class="del-btn" type="button">删除</button></div></div>`
+    return `<div class="rule" data-type="allow" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code><div class="rule-actions"><span class="mode-label">${writable ? '读写' : '只读'}</span><button class="visit-btn" type="button">访问</button><button class="del-btn allow-del" type="button">删除</button></div></div>`
   }).join('')
   const denyHtml = display.file.access.deny.map(p =>
-    `<div class="rule" data-type="deny" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code><div class="rule-actions"><button class="del-btn" type="button">删除</button></div></div>`
+    `<div class="rule" data-type="deny" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code></div>`
   ).join('')
   const mimeHtml = mimeEntries.map(([ext, type]) =>
     `<div class="rule" data-type="mime" data-ext="${escapeHtml(ext)}"><code>${escapeHtml(ext)}</code><code>${escapeHtml(type)}</code><div class="rule-actions"><button class="del-btn" type="button">删除</button></div></div>`
@@ -69,6 +71,8 @@ function renderPage(config, addr) {
     }
     .rule-actions button:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-soft); }
     .rule-actions .del-btn:hover { border-color: var(--red); color: var(--red); background: var(--red-soft); }
+    .mode-label { font-size: 11.5px; font-weight: 500; color: var(--dim); padding: 3px 9px; border-radius: 7px; background: #F1F1F5; }
+    .access-notice { margin: 10px 0 0; padding: 10px 14px; font-size: 12.5px; color: var(--amber); background: var(--amber-soft); border-radius: var(--radius); }
     .empty { padding: 14px 16px; font-size: 12.5px; color: var(--faint); }
 
     .add-row { display: flex; gap: 8px; margin-top: 10px; }
@@ -85,21 +89,6 @@ function renderPage(config, addr) {
     }
     .foot-line .links { margin-left: auto; display: flex; gap: 16px; }
     .foot-line a:hover { color: var(--blue); }
-
-    .modal-overlay {
-      position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
-      background: rgba(17, 17, 20, .42); padding: 20px;
-    }
-    .modal-box { width: 100%; max-width: 560px; padding: 24px; background: #fff; border-radius: 16px; box-shadow: 0 12px 40px rgba(17, 17, 20, .18); }
-    .modal-box h3 { margin: 0 0 16px; font-size: 15px; font-weight: 500; }
-    .modal-path-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 12.5px; color: var(--dim); }
-    .modal-path-row .arrow { flex: 0 0 auto; }
-    .modal-path-row code {
-      flex: 1; min-width: 0; padding: 8px 10px; word-break: break-all;
-      font-family: var(--mono); font-size: 12px; background: #FAFAFC; border: 1px solid var(--line); border-radius: 8px;
-    }
-    .modal-warning { margin: 12px 0; padding: 8px 12px; font-size: 12.5px; color: var(--amber); background: var(--amber-soft); border-radius: 8px; }
-    .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 
     .restart-page { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: var(--bg); }
     .restart-content { max-width: 460px; padding: 32px; text-align: center; }
@@ -156,24 +145,17 @@ function renderPage(config, addr) {
   </div>
 
   <div class="section">
-    <div class="section-title">允许列表 <span class="cnt">${allowCount} 条</span></div>
-    <div class="rule-list">
+    <div class="section-title">允许列表 <span class="cnt" id="allow-count">${allowCount} 条 · 可删除，新增走弹窗</span></div>
+    <div class="rule-list" id="allow-list">
       ${allowHtml || '<div class="empty">空 = 拒绝所有文件访问</div>'}
     </div>
-    <div class="add-row">
-      <input type="text" id="add-allow" placeholder="例如 ~/docs 或 D:/data（自动规范化为绝对路径，默认读写）">
-      <button class="btn" type="button" onclick="addRule('allow')">添加</button>
-    </div>
+    <div class="access-notice">新增访问规则走 <code>u32-ls access</code> 弹窗由用户确认；删除本页直接操作、即时生效。${escapeHtml(ACCESS_WRITE_GUIDE)}</div>
   </div>
 
   <div class="section">
-    <div class="section-title">拒绝列表 <span class="cnt">${denyCount} 条 · 优先级高于允许列表</span></div>
+    <div class="section-title">拒绝列表 <span class="cnt">${denyCount} 条 · 优先级高于允许列表 · 只读</span></div>
     <div class="rule-list">
       ${denyHtml || '<div class="empty">空</div>'}
-    </div>
-    <div class="add-row">
-      <input type="text" id="add-deny" placeholder="例如 ~/secrets 或 C:/Windows（自动规范化为绝对路径）">
-      <button class="btn" type="button" onclick="addRule('deny')">添加</button>
     </div>
   </div>
 
@@ -202,23 +184,6 @@ function renderPage(config, addr) {
   </div>
 </footer>
 
-<div id="confirm-modal" class="modal-overlay" style="display:none">
-  <div class="modal-box">
-    <h3>确认添加路径</h3>
-    <div class="modal-path-row">
-      <span>输入</span><code id="modal-input"></code>
-    </div>
-    <div class="modal-path-row">
-      <span class="arrow">将添加</span><code id="modal-resolved"></code>
-    </div>
-    <div id="modal-warn" class="modal-warning" style="display:none">该路径在服务器上不存在，仍可添加（前缀规则照常生效）</div>
-    <div class="modal-actions">
-      <button class="btn" type="button" onclick="modalCancel()">取消</button>
-      <button class="btn btn-primary" type="button" onclick="modalConfirm()">确认添加</button>
-    </div>
-  </div>
-</div>
-
 <script>
 let needsRestart = false
 const RENDERED_PORT = ${config.port}
@@ -243,109 +208,15 @@ async function api(method, body) {
   if (!res.ok) { const t = await res.text(); alert(t); return null }
   return res.json()
 }
-function appendRuleDom(type, ruleList, pathVal) {
-  const emptyMsg = ruleList.querySelector('.empty')
-  if (emptyMsg) emptyMsg.remove()
-  const newRule = document.createElement('div')
-  newRule.className = 'rule'
-  newRule.setAttribute('data-type', type)
-  newRule.setAttribute('data-path', pathVal)
-  const code = document.createElement('code')
-  code.textContent = pathVal
-
-  const actionsDiv = document.createElement('div')
-  actionsDiv.className = 'rule-actions'
-
-  if (type === 'allow') {
-    const modeBtn = document.createElement('button')
-    modeBtn.className = 'mode-btn'
-    modeBtn.type = 'button'
-    modeBtn.textContent = '读写'
-    newRule.setAttribute('data-write', 'true')
-    actionsDiv.appendChild(modeBtn)
-    const visitBtn = document.createElement('button')
-    visitBtn.className = 'visit-btn'
-    visitBtn.type = 'button'
-    visitBtn.textContent = '访问'
-    actionsDiv.appendChild(visitBtn)
-  }
-
-  const delBtn = document.createElement('button')
-  delBtn.textContent = '删除'
-  delBtn.type = 'button'
-  delBtn.className = 'del-btn'
-  actionsDiv.appendChild(delBtn)
-
-  newRule.appendChild(code)
-  newRule.appendChild(actionsDiv)
-  ruleList.appendChild(newRule)
-}
-
-async function addRule(type) {
-  const input = document.getElementById('add-' + type)
-  const val = input.value.trim()
-  if (!val) return
-  // 先让服务端规范化路径，需转换时弹窗由用户确认
-  const r = await api('POST', { action: 'resolvePath', path: val })
-  if (!r) return
-  if (r.resolved !== val) {
-    pendingAdd = { type, resolved: r.resolved, exists: r.exists }
-    document.getElementById('modal-input').textContent = val
-    document.getElementById('modal-resolved').textContent = r.resolved
-    document.getElementById('modal-warn').style.display = r.exists ? 'none' : 'block'
-    document.getElementById('confirm-modal').style.display = 'flex'
-  } else {
-    submitAdd(type, r.resolved)
-  }
-}
-
-let pendingAdd = null
-
-function modalCancel() {
-  pendingAdd = null
-  document.getElementById('confirm-modal').style.display = 'none'
-}
-
-async function modalConfirm() {
-  if (!pendingAdd) return modalCancel()
-  const { type, resolved } = pendingAdd
-  pendingAdd = null
-  document.getElementById('confirm-modal').style.display = 'none'
-  await submitAdd(type, resolved)
-}
-
-async function submitAdd(type, resolvedPath) {
-  const input = document.getElementById('add-' + type)
-  const result = await api('POST', { action: 'add', type, path: resolvedPath })
-  if (result) {
-    if (result.added === false) {
-      alert('该规则已存在（规范化后）：' + resolvedPath)
-    } else {
-      const ruleList = input.parentElement.previousElementSibling
-      appendRuleDom(type, ruleList, resolvedPath)
-      showRestartNotice()
-    }
-    input.value = ''
-  }
-}
-// 删除按钮不携带路径参数，事件从 .rule 节点的 data-* 属性读取，避免路径拼进 JS 字符串造成注入
-async function removeRule(ruleType, path, ruleEl) {
-  const result = await api('POST', { action: 'remove', type: ruleType, path })
-  if (result) {
-    if (ruleEl) {
-      ruleEl.remove()
-    }
-    showRestartNotice()
-  }
-}
-// 切换允许条目的 只读/读写 模式：fs-api 按磁盘 mtime 缓存读取，立即生效无需重启
-async function toggleWrite(ruleEl) {
-  const p = ruleEl.dataset.path
-  const writable = ruleEl.dataset.write === 'true'
-  const result = await api('POST', { action: 'setAllowWrite', path: p, write: !writable })
-  if (result) {
-    ruleEl.dataset.write = String(!writable)
-    ruleEl.querySelector('.mode-btn').textContent = !writable ? '读写' : '只读'
+// 删除允许规则＝收紧权限，直接删、即时生效，无需用户弹窗授权
+async function removeAllow(p, ruleEl) {
+  const result = await api('POST', { action: 'removeAllow', path: p })
+  if (result && ruleEl) {
+    ruleEl.remove()
+    const list = ruleEl.parentElement
+    if (!list.querySelector('.rule')) list.innerHTML = '<div class="empty">空 = 拒绝所有文件访问</div>'
+    const cnt = document.getElementById('allow-count')
+    if (cnt) cnt.textContent = document.querySelectorAll('#allow-list .rule').length + ' 条 · 可删除，新增走弹窗'
   }
 }
 async function savePort() {
@@ -453,23 +324,14 @@ async function removeMime(ext, ruleEl) {
     showRestartNotice()
   }
 }
-// 事件委托：统一处理服务端渲染与动态添加的规则按钮
+// 事件委托：允许列表删除（收紧权限，直接删）+ MIME 删除 + 允许列表「访问」
 document.addEventListener('click', function(e) {
-  const mode = e.target.closest('.mode-btn')
-  if (mode) {
-    const rule = mode.closest('.rule')
-    if (rule && rule.dataset.type === 'allow') toggleWrite(rule)
-    return
-  }
   const del = e.target.closest('.del-btn')
   if (del) {
     const rule = del.closest('.rule')
     if (!rule) return
-    if (rule.dataset.type === 'mime') {
-      removeMime(rule.dataset.ext, rule)
-    } else {
-      removeRule(rule.dataset.type, rule.dataset.path, rule)
-    }
+    if (rule.dataset.type === 'allow') removeAllow(rule.dataset.path, rule)
+    else if (rule.dataset.type === 'mime') removeMime(rule.dataset.ext, rule)
     return
   }
   const visit = e.target.closest('.visit-btn')
@@ -489,58 +351,34 @@ function handleApi(req, res) {
     try {
       const data = JSON.parse(body)
       logger.debug(`[CONFIG-API] Received action: ${data.action}\n`)
+
+      // 访问规则写入口已迁移到 `u32-ls access` 弹窗；这里一律拒绝并给出引导（含给 AI 的禁令）
+      if (['add', 'remove', 'setAllowWrite', 'resolvePath'].includes(data.action)) {
+        logger.error(`[CONFIG-API] Rejected access-rule write action: ${data.action}\n`)
+        res.writeHead(410, { 'Content-Type': 'text/plain; charset=utf-8' })
+        return res.end(`410 Gone: 新增访问规则请用 u32-ls access 弹窗；删除请用 removeAllow。${ACCESS_WRITE_GUIDE}`)
+      }
+
       const config = loadConfig()
 
-      if (data.action === 'resolvePath') {
-        const resolved = resolvePath(String(data.path || '').trim())
-        let exists = null
-        try { exists = fs.existsSync(resolved) } catch (e) { exists = false }
+      // 删除允许列表条目＝收紧权限，无需弹窗授权，直接删；deny 删除仍禁止（放宽权限）
+      if (data.action === 'removeAllow') {
+        const p = require('./config').resolvePath(String(data.path || '').trim())
+        config.file.access.allow = (config.file.access.allow || []).filter(e =>
+          (typeof e === 'string' ? e : e.path) !== p
+        )
+        saveConfig(config)
+        logger.debug(`[CONFIG-API] Removed allow rule: ${p}\n`)
         res.writeHead(200, {
           'Content-Type': 'application/json',
           'access-control-allow-origin': '*',
           'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
           'access-control-allow-headers': '*',
         })
-        return res.end(JSON.stringify({ ok: true, resolved, exists }))
-      } else if (data.action === 'add') {
-        const arr = data.type === 'allow' ? config.file.access.allow : config.file.access.deny
-        const resolved = resolvePath(String(data.path || '').trim())
-        // allow 条目存为 { path, write }，默认读写；deny 保持字符串
-        const toEntry = (p) => data.type === 'allow' ? { path: p, write: true } : p
-        const pathOf = (e) => typeof e === 'string' ? e : e.path
-        let added = false
-        if (!arr.some(e => pathOf(e) === resolved)) {
-          arr.push(toEntry(resolved))
-          added = true
-          logger.debug(`[CONFIG-API] Added ${data.type} rule: ${resolved}\n`)
-        } else {
-          logger.debug(`[CONFIG-API] Rule already exists: ${resolved}\n`)
-        }
-        saveConfig(config)
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'access-control-allow-headers': '*',
-        })
-        res.end(JSON.stringify({ ok: true, added, resolved }))
-      } else if (data.action === 'remove') {
-        if (data.type === 'allow') {
-          config.file.access.allow = config.file.access.allow.filter(p => p !== data.path)
-          logger.debug(`[CONFIG-API] Removed allow rule: ${data.path}\n`)
-        } else {
-          config.file.access.deny = config.file.access.deny.filter(p => p !== data.path)
-          logger.debug(`[CONFIG-API] Removed deny rule: ${data.path}\n`)
-        }
-        saveConfig(config)
-        res.writeHead(200, { 
-          'Content-Type': 'application/json',
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'access-control-allow-headers': '*',
-        })
-        res.end(JSON.stringify({ ok: true }))
-      } else if (data.action === 'addMime') {
+        return res.end(JSON.stringify({ ok: true, path: p }))
+      }
+
+      if (data.action === 'addMime') {
         if (!config.file.mime) config.file.mime = {}
         const ext = data.ext.startsWith('.') ? data.ext : '.' + data.ext
         config.file.mime[ext] = data.mime
@@ -566,24 +404,6 @@ function handleApi(req, res) {
           'access-control-allow-headers': '*',
         })
         res.end(JSON.stringify({ ok: true }))
-      } else if (data.action === 'setAllowWrite') {
-        // 切换允许条目的 只读/读写 模式：fs-api 每次请求按配置文件 mtime 缓存读取，改完立即生效，无需重启
-        const resolved = resolvePath(String(data.path || '').trim())
-        const entry = (config.file.access.allow || []).find(e => typeof e === 'object' && e.path === resolved)
-        if (!entry) {
-          res.writeHead(404, { 'Content-Type': 'text/plain' })
-          return res.end(`allow rule not found: ${data.path}`)
-        }
-        entry.write = data.write === true
-        saveConfig(config)
-        logger.debug(`[CONFIG-API] Allow rule write=${entry.write}: ${resolved}\n`)
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'access-control-allow-headers': '*',
-        })
-        res.end(JSON.stringify({ ok: true, path: resolved, write: entry.write }))
       } else if (data.action === 'setPort' || data.action === 'restart') {
         // 端口校验：页面传空得到 null（NaN 序列化），手输超范围值也在此拦截，避免坏配置导致服务起不来
         const port = Number(data.port)

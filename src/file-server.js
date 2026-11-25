@@ -256,7 +256,7 @@ function renderAllowListPage(config, urlPath) {
     : `<li class="empty-message">
         <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
         <div class="empty-text">当前允许列表为空</div>
-        <div class="empty-hint">请前往<a href="${escapeHtml(relLink(urlPath, '/config'))}">配置页面</a>添加要访问的路径</div>
+        <div class="empty-hint">请执行 <code>u32-ls access</code> 打开浏览器确认页，由用户添加要访问的路径（AI 禁止直接改配置）</div>
       </li>`
 
   return `<!DOCTYPE html>
@@ -441,7 +441,10 @@ function serve(req, res, config) {
 
   if (!isAllowed(filePath, config)) {
     const reasons = []
-    const solutions = ['在配置页面中将该路径添加到允许列表']
+    const solutions = [
+      '执行 u32-ls access 打开浏览器授权页，由用户确认后将该路径加入允许列表',
+      'AI 禁止直接编辑配置文件或调用写配置的 HTTP 接口'
+    ]
     const deny = (config.file.access.deny || []).filter(r => filePath.startsWith(r))
     const allow = (config.file.access.allow || []).map(e => typeof e === 'string' ? e : e.path)
     if (deny.length > 0) {

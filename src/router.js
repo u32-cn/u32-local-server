@@ -1,4 +1,5 @@
 const logger = require('./logger')
+const { getLiveConfig } = require('./config')
 const path = require('path')
 const { redirect } = require('./utils')
 const seaAssets = require('./sea-assets')
@@ -63,10 +64,12 @@ function sendJson(res, data, code) {
   res.end(JSON.stringify(data))
 }
 
-function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPageServe, bridgeStatusServe, pickerServe, pickerDemoServe, config) {
-  artifacts.init(config, config.file && config.file.mime) // 桥产物存储：建目录+启动清空+定时清扫
+function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPageServe, bridgeStatusServe, pickerServe, pickerDemoServe, bootConfig) {
+  artifacts.init(bootConfig, bootConfig.file && bootConfig.file.mime) // 桥产物存储：建目录+启动清空+定时清扫
   server.on('request', (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`)
+    // 每个请求取磁盘最新配置：access 弹窗保存后立即生效，无需重启（mtime 未变时走缓存）
+    const config = getLiveConfig() || bootConfig
     logger.debug(`[REQUEST] ${req.method} ${url.pathname} from ${req.socket.remoteAddress}\n`)
 
     // 请求指标（/status 状态页用）：仅计数，无副作用

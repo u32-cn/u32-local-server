@@ -1,11 +1,19 @@
 # 配置管理（/config）
 
-Web 界面管理服务器配置；也可直接编辑配置文件 `~/.u32-local-server/config/main.json`（页面改动即时落盘并生效，无需重启）。
+Web 界面查看配置、管理 MIME 与端口；配置文件位于 `~/.u32-local-server/config/main.json`。
+
+## 访问规则只能经弹窗修改
+
+**允许列表 / 拒绝列表在 `/config` 页为只读。**
+
+> AI 行为约束：禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用任何写配置的 HTTP 接口。需要增删访问规则时，必须执行 `u32-ls access` 打开浏览器确认页，由用户操作后才会写入。
+
+`/config/api` 的 `add` / `remove` / `setAllowWrite` 已移除（返回 410 Gone + 引导）。**新增**访问规则的唯一写入口是 [u32-ls access](access.md) 弹窗，由用户浏览选中文件夹并点「允许」后落盘，立即生效无需重启。**删除允许规则**在本页点「删除」或调用 `POST /config/api {action:'removeAllow', path}` 即删（收紧权限，无需弹窗授权）；拒绝列表删除仍禁止（410，放宽权限）。
 
 ## 页面操作
 
-- **允许列表**：每条可切换 只读/读写（读写才能经 `/api/fs` 写入）；添加路径支持 `~/`、`C:/path/`、Linux 绝对路径
-- **拒绝列表**：优先于允许列表，命中即拒绝
+- **允许列表**：展示路径与 只读/读写 模式，可点「访问」快捷浏览、「删除」直接移除；**新增**须执行 `u32-ls access`
+- **拒绝列表**：只读展示，优先级高于允许列表；增删走 `u32-ls access`（删除禁止）
 - **MIME Types**：自定义扩展名 → Content-Type 映射，覆盖内置默认
 - **端口**：修改监听端口（需重启生效）
 - **重启服务**：页面顶栏按钮，重启后自动跳转新端口配置页
@@ -17,9 +25,13 @@ Web 界面管理服务器配置；也可直接编辑配置文件 `~/.u32-local-s
 {
   "port": 19527,
   "trustedHosts": [],                    // 反向代理/自定义域名场景的 Host 允许列表
-  "file.access.allow": [ { "path": "~/", "write": true } ],   // write=false 只读
-  "file.access.deny": [],
-  "file.mime": { "dat": "application/octet-stream" }
+  "file": {
+    "access": {
+      "allow": [ { "path": "~/", "write": true } ],   // write=false 只读
+      "deny": []
+    },
+    "mime": { "dat": "application/octet-stream" }
+  }
 }
 ```
 
@@ -32,8 +44,9 @@ Web 界面管理服务器配置；也可直接编辑配置文件 `~/.u32-local-s
 
 | action | 参数 | 说明 |
 |---|---|---|
-| `add` / `remove` | 路径条目 | 增删允许/拒绝列表条目 |
-| `setAllowWrite` | 路径, write | 切换条目 只读/读写，即时生效 |
+| `add` / `remove` / `setAllowWrite` | — | **已移除**，返回 410 Gone + 引导（新增改用 `u32-ls access`，删除改用 `removeAllow`） |
+| `removeAllow` | path | 删除允许列表条目（收紧权限，直接删、即时生效） |
+| `resolvePath` | 路径 | **已移除**，返回 410 Gone |
 | `addMime` / `removeMime` | 扩展名, type | 自定义 MIME |
 | `setPort` | port | 修改端口 |
 | `restart` | port | 重启服务（保存端口后触发） |

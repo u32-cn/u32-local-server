@@ -50,7 +50,8 @@ u32-local-server 把这层授权移到服务端，一次配置、长期可用：
 - ✍️ **文件写入 API** - REST API 支持写入/追加/建目录/删除/移动/复制/查询（按路径的 只读/读写 权限控制）
 - 🌉 **浏览器桥** - AI 与浏览器页面之间的长轮询透明转发层：页面注册后蹲守指令，AI 下发消息并同步等回包
 - 🔐 **权限控制** - 允许列表/拒绝列表机制控制文件访问（路径可设 只读/读写），拒绝列表优先
-- 🎨 **可视化配置** - Web 界面管理端口、允许列表/拒绝列表（只读/读写）、MIME 类型
+- 🪟 **访问规则授权** - `u32-ls access <目录>` 起一次性本地服务 + 浏览器确认页，直接展示给定目录、用户点「允许」即生效；支持弹窗式目录选择器自选，无需手填路径；这是新增的唯一写入口，AI 禁止直接改配置
+- 🎨 **可视化配置** - Web 界面管理端口、MIME 类型；允许列表可直接删除、拒绝列表只读（新增走 `u32-ls access`）
 - 🚀 **开机自启** - 注册为系统服务（Windows 注册表 Run 键 / Linux systemd）
 - 📋 **右键菜单** - Windows 集成文件/文件夹右键菜单
 - 🖥️ **免 Node 安装包（仅 Windows）** - 单文件 exe 自带 Node 运行时，约 24MB 安装包，双击安装、不写 PATH、无需装 Node；macOS/Linux 无安装包，用 npm 版
@@ -126,7 +127,7 @@ u32-ls open /path/to/file
 u32-ls copy-url /path/to/file
 ```
 
-> 注意：默认配置 `file.access.allow` 为空，拒绝所有文件访问。需先在配置页面或配置文件中添加允许列表。
+> 注意：默认配置 `file.access.allow` 为空，拒绝所有文件访问。需先执行 `u32-ls access` 打开浏览器确认页，由用户添加允许目录（该文件是唯一写入口，AI 禁止直接编辑配置）。
 
 ### 2. CORS 代理
 
@@ -365,9 +366,10 @@ location / {
 访问 `http://localhost:19527/config` 可视化管理：
 
 - 修改端口号
-- 添加/删除访问规则
-- 切换允许路径的 只读/读写 模式（即时生效）
+- 允许列表可点「删除」即时移除；新增须执行 `u32-ls access` 由用户在浏览器确认页操作；拒绝列表只读
 - 自定义 MIME 类型
+
+> **AI 行为约束**：禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用任何写配置的 HTTP 接口。新增访问规则必须执行 `u32-ls access` 打开浏览器确认页由用户点「允许」；删除允许规则可在本页直接操作。详见 [docs/readme/access.md](docs/readme/access.md)。
 
 ## 命令参考
 
@@ -382,6 +384,7 @@ location / {
 | `u32-ls url <path>` | 获取文件 URL |
 | `u32-ls open <path>` | 在浏览器中打开 |
 | `u32-ls copy-url <path>` | 复制 URL 到剪贴板 |
+| `u32-ls access [path]` | 打开浏览器确认页，直接展示给定目录，用户点「允许」即写入；可浏览自选目录（访问规则唯一写入口）|
 | `u32-ls register` | 注册开机自启 + 右键菜单 |
 | `u32-ls unregister` | 取消注册 |
 | `u32-ls tray` | 启动 Windows 系统托盘图标（仅 Windows；按服务状态置灰/激活）|
@@ -428,8 +431,8 @@ location / {
 | `/bridge/api/*` | 浏览器桥 API（register/poll/reply/pages/send，长轮询）|
 | `/public/bridge-client.js` | 浏览器桥页面客户端脚本 |
 | `/api/service` | 服务注册 API |
-| `/config` | 配置管理页面 |
-| `/config/api` | 配置 REST API |
+| `/config` | 配置管理页面（允许/拒绝列表只读） |
+| `/config/api` | 配置 REST API（MIME/端口/重启/停止；访问规则写 action 已移除＝410） |
 | `/llms.txt` | 站点说明（面向 LLM） |
 | `/docs` | 重定向到 `/docs/index.html`（文档站首页，离线可看）|
 | `/docs/index.html`、`/docs/reader.html` | 文档站页面（固定白名单，读包内 `docs/`）|
@@ -445,6 +448,7 @@ location / {
 - 所有文件访问（含 picker API）经 `isAllowed` 允许列表校验，拒绝列表优先
 - 写接口（`/config/api`、`/api/fs`、`/api/service`、`/bridge/api/*` POST）有同源 Origin 校验，阻断跨站 CSRF
 - 文件写入要求路径为读写模式（允许列表条目 `write: true`）
+- 访问规则**新增**只能经 `u32-ls access` 浏览器确认页写入：`/config/api` 的 `add`/`remove`/`setAllowWrite` 已移除（410），AI 禁止直接改配置文件；删除允许规则走 `removeAllow`（收紧权限，无需弹窗）
 
 ## 技术架构
 
@@ -494,7 +498,8 @@ src/permission.js     # 权限校验：isAllowed / isWritable，deny 优先于 a
 src/posix-path.js     # 路径转换：Windows C:\path → /C:/path，统一 POSIX 分隔符
 src/file-server.js    # /file/ 文件服务 + 目录列表 HTML + 60+ MIME 类型
 src/proxy.js          # /proxy/ CORS 代理（删 accept-encoding / x-frame-options，注入 CORS 头）
-src/config-page.js    # /config 配置页面 + /config/api REST API
+src/cmd-access.js     # access：一次性本地服务 + 浏览器确认页，用户增删 allow/deny（唯一写入口）
+src/config-page.js    # /config 配置页面 + /config/api REST API（权限只读，写 action 已移除）
 src/home-page.js      # / 首页
 src/status-page.js    # /status 运行状态页（SSR）+ /status/api JSON
 src/sysinfo.js        # /status 数据采集（不读任何敏感信息；maskPath 家目录脱敏）

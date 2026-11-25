@@ -145,4 +145,20 @@ function saveConfig(config) {
   logger.info(`[CONFIG] Config saved successfully\n`)
 }
 
-module.exports = { loadConfig, saveConfig, resolveConfig, resolvePath, CONFIG_FILE, CONFIG_DIR, getDefaultConfig }
+// 实时配置：按配置文件 mtime 缓存，文件一变就重载，供长驻服务每次请求取用。
+// 与 loadConfig 的区别：loadConfig 带迁移写入，适合启动/CLI；这里只读，失败回退上一份好配置。
+let liveCache = { mtime: -1, config: null }
+function getLiveConfig() {
+  try {
+    const mtime = fs.statSync(CONFIG_FILE).mtimeMs
+    if (!liveCache.config || mtime !== liveCache.mtime) {
+      liveCache = { mtime, config: resolveConfig(loadConfig()) }
+    }
+    return liveCache.config
+  } catch (err) {
+    logger.error(`[CONFIG] Failed to reload config: ${err.message}\n`)
+    return liveCache.config
+  }
+}
+
+module.exports = { loadConfig, saveConfig, resolveConfig, resolvePath, getLiveConfig, CONFIG_FILE, CONFIG_DIR, getDefaultConfig }

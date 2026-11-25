@@ -8,10 +8,11 @@
 2. **跨平台**：所有改动必须兼容 Windows 与 Linux；路径统一 POSIX 风格（`/` 分隔符，Windows 盘符 `C:\path` → `/C:/path`）
 3. **权限不变式**：`deny` 优先于 `allow`；`allow` 为空 = 拒绝所有。任何改动不得破坏该模型
 4. **MIME 优先级**：配置 `file.mime` 覆盖内置默认值，不得反转
-5. **敏感信息红线**：
+5. **访问规则新增只能经弹窗**：allow/deny 的**新增**唯一写入口是 `u32-ls access` 浏览器确认页，由用户浏览选中文件夹并点「允许」后落盘。**AI 禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用 `/config/api` 的 `add`/`remove`/`setAllowWrite`（已移除，返回 410）**。删除允许规则是收紧权限，可在 `/config` 页点「删除」或调 `removeAllow`，不需弹窗；deny 删除仍禁止。AI 需要新增授权时只能提示用户执行 `u32-ls access`，不得代改配置
+6. **敏感信息红线**：
    - `/status` 不采集任何敏感信息是既定设计（`process.env`、磁盘卷、主机名、用户名/uid/gid、家目录、网络接口 IP/MAC 一律不读取），改代码不得引入采集
    - 不提交含本机绝对路径、密钥、token 的文件（register 生成的脚本统一写入 `runtime/`，该目录已在 `.gitignore`，保持忽略）
-6. **文档同步义务**：改功能时同步 `docs/readme/*.md`（唯一源，同时供 Pages 站点与 `/docs/<name>.md` 使用）、`docs/llms.txt`（`/llms.txt` 的唯一源，本地服务动态替换 `{{PORT}}`；Pages 站点原样发布，改过一次后就别再复制出别的副本）、`CHANGELOG.md`；涉及桥连接机制时同步 `docs/readme/bridge-connection-lifecycle.md`
+7. **文档同步义务**：改功能时同步 `docs/readme/*.md`（唯一源，同时供 Pages 站点与 `/docs/<name>.md` 使用）、`docs/llms.txt`（`/llms.txt` 的唯一源，本地服务动态替换 `{{PORT}}`；Pages 站点原样发布，改过一次后就别再复制出别的副本）、`CHANGELOG.md`；涉及桥连接机制时同步 `docs/readme/bridge-connection-lifecycle.md`
 
 ## 易错坑（实测）
 
@@ -28,7 +29,13 @@
 
 ### WorkBuddy 会话进程回收陷阱
 
-在 WorkBuddy 托管会话里 `npm start` / `u32-ls start` 拉起的服务进程，会在该轮命令结束后 40~70 秒静默消失（日志无 FATAL、PID 文件残留、端口消失，非崩溃，原因未定位）。需常驻服务时：让用户自己启动，或用 Windows 计划任务拉起；不要反复重启排查。
+在 WorkBuddy 托管会话里 `npm start` / `u32-ls start` 拉起的服务进程，会在该轮命令结束后 40~70 秒静默消失（日志无 FATAL、PID 文件残留、端口消失，非崩溃，原因未定位）。
+
+**硬性规则（2026-11-25 实测再次踩坑，用户已明确要求记住）**：
+- **禁止在会话里直接启动或重启常驻服务**——不要用 `node src/index.js start/restart`、不要用后台任务起服务，哪怕只是"临时测试"
+- **AI 默认自己用 Windows 一次性计划任务拉起**（`schtasks /create /sc once` + `/run`），父进程变 `svchost` 脱离会话树；用完 `/delete`
+- **只有计划任务失败/受限时，才告知用户可以自行在普通终端跑**（给命令即可，不代劳）。不是一上来就把启动推给用户
+- 不要反复重启排查；服务打不开先查是不是旧全局包/会话回收，不是代码问题
 
 ### 端口占用
 

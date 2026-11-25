@@ -2,6 +2,8 @@
 
 npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。安装步骤与 npm 落点检查见 [installation.md](installation.md)。
 
+> **AI 注意**：禁止直接编辑配置文件 `~/.u32-local-server/config/main.json` 或调用写配置的 HTTP 接口。需要增删访问规则时只能执行 `u32-ls access`，由用户在浏览器页确认后写入。
+
 ## 命令一览
 
 | 命令 | 说明 |
@@ -15,6 +17,7 @@ npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。安装
 | `u32-ls url <path>` | 输出本地文件/目录的访问 URL |
 | `u32-ls open [path]` | 浏览器打开首页或指定文件（无参开首页） |
 | `u32-ls copy-url <path>` | 复制 URL 到剪贴板 |
+| `u32-ls access [path]` | **访问规则唯一写入口**：起一次性本地服务 + 浏览器确认页，直接展示给定目录、用户点「允许」即写入；「浏览文件夹…」弹页面内居中 iframe 模态框自选目录（不新开窗口，即时生效，5 分钟超时）。AI 只能请求弹窗，禁止直接改配置，见 [access.md](access.md) |
 | `u32-ls register` | 注册开机自启（Windows 另加右键菜单：在浏览器中打开/复制 URL） |
 | `u32-ls unregister` | 取消注册 |
 | `u32-ls tray` | 启动系统托盘图标（仅 Windows；右键菜单：启动/停止/查看网页/退出。图标按服务状态置灰/激活，查看网页只开浏览器不启动服务） |
