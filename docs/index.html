@@ -35,7 +35,7 @@
       两项能力都需要 Web 端按协议做小幅改造。
     </p>
     <div class="cta-row" data-u32-name="hero-cta">
-      <a class="btn btn-primary" id="dl-win" data-dl="win" href="https://github.com/u32-cn/u32-local-server/releases/latest" data-u32-name="cta-download">下载 Windows 安装包<span class="dl-ver" id="dl-win-ver" hidden></span></a>
+      <a class="btn btn-primary" id="dl-win" data-dl="win" href="https://u32-local-server.u32.cn/" data-u32-name="cta-download">下载 Windows 安装包<span class="dl-ver" id="dl-win-ver" hidden></span></a>
       <a class="btn btn-primary" href="#start" data-u32-name="cta-start">快速开始</a>
       <a class="btn btn-ghost" href="#docs" data-u32-name="cta-docs">浏览文档</a>
     </div>
@@ -173,7 +173,7 @@ u32-ls start
 u32-ls open .</pre>
       </div>
       <div class="notes" data-u32-name="start-notes">
-        <p data-u32-name="note-win"><b>Windows 免装 Node。</b>直接 <a id="dl-win-2" data-dl="win" href="https://github.com/u32-cn/u32-local-server/releases/latest" target="_blank" rel="noopener">下载安装包</a>双击安装（约 24MB，未签名，SmartScreen 提示选「仍要运行」）；已装用户可在控制台一键检测并升级到最新版。</p>
+        <p data-u32-name="note-win"><b>Windows 免装 Node。</b>直接 <a id="dl-win-2" data-dl="win" href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">下载安装包</a>双击安装（约 24MB，未签名，SmartScreen 提示选「仍要运行」）；已装用户可在控制台一键检测并升级到最新版。</p>
         <p data-u32-name="note-1"><b>默认拒绝所有访问。</b>加允许目录之前什么都读不到，这是设计不是 bug。</p>
         <p data-u32-name="note-2"><b>只监听本机。</b>不暴露公网；写接口另带同源 Origin 校验，挡住跨站请求。</p>
         <p data-u32-name="note-3"><b>装在哪。</b>在 AI 工具的托管终端里 <code>npm i -g</code> 可能落到工具自带的 node，装前先看 <code>npm config get prefix</code>。</p>
@@ -207,12 +207,15 @@ u32-ls open .</pre>
 var AI_INSTALL_PROMPT = '读取 https://u32-local-server.u32.cn/llms.txt ，根据我的系统帮我安装并启动 u32-local-server';
 
 /* Windows 下载（git-notes 官网同款模式）：
-   版本元数据 /data/win/latest.yml（Pages 站点自身，稳定）→ 解析出安装包直链
+   版本元数据 /data/win/latest.yml（公网站点，稳定）→ 解析出安装包直链
    /download/win/<file>（同域路径，经 EdgeOne 回源 GitHub Releases + 边缘缓存，发布侧配置）→
-   按钮点击时并行 HEAD 探活（主路 + gh-proxy 备源），最快的源胜出触发下载 */
+   按钮点击时并行 HEAD 探活（CDN 主路 + gh-proxy 备源），最快的源胜出触发下载。
+   注意：BASE 固定为公网域名——同一份 index.html 也被本地服务 /docs 路径托管
+   （origin 127.0.0.1:19527 下没有 latest.yml），固定公网域保证内网打开同样能切直链；
+   且公网 yml 与下载路径同域，fetch 无 CORS 问题。页面地址里不出现 github.com。 */
 (function(){
-  var BASE = location.origin;
-  var GH_REPO = 'https://github.com/u32-cn/u32-local-server';
+  var BASE = 'https://u32-local-server.u32.cn';
+  var GH_REPO_MIRROR = 'https://github.com/u32-cn/u32-local-server'; // 仅作 gh-proxy 镜像备源拼接，非用户可见直链
   var state = null;
 
   function get(url){
@@ -238,7 +241,7 @@ var AI_INSTALL_PROMPT = '读取 https://u32-local-server.u32.cn/llms.txt ，根�
     var navVer = document.getElementById('nav-version');
     if (navVer) navVer.textContent = 'v' + data.version; // 导航版本跟随 latest，硬编码值仅作 JS 失效兜底
     document.querySelectorAll('[data-dl="win"]').forEach(function(a){
-      a.href = data.main; // JS 失效兜底：初始 href 是 releases/latest，元数据就绪后换直链
+      a.href = data.main; // 元数据就绪后换 CDN 直链；初始 href 指向公网站点（无 github 地址）
       a.target = '_blank'; a.rel = 'noopener'; a.dataset.ready = '1';
     });
   }
@@ -264,11 +267,11 @@ var AI_INSTALL_PROMPT = '读取 https://u32-local-server.u32.cn/llms.txt ，根�
 
   document.querySelectorAll('[data-dl="win"]').forEach(function(a){
     a.addEventListener('click', function(e){
-      if (a.dataset.ready !== '1') { load(); return; } // 元数据没就绪：不拦，走初始 href 兜底
+      if (a.dataset.ready !== '1') { load(); return; } // 元数据没就绪：不拦，走初始 href（公网站点）兜底
       if (state && state.main) {
         var mirrors = [state.main,
-          'https://gh-proxy.org/' + GH_REPO + '/releases/download/v' + state.version + '/' + state.name,
-          'https://cdn.gh-proxy.org/' + GH_REPO + '/releases/download/v' + state.version + '/' + state.name];
+          'https://gh-proxy.org/' + GH_REPO_MIRROR + '/releases/download/v' + state.version + '/' + state.name,
+          'https://cdn.gh-proxy.org/' + GH_REPO_MIRROR + '/releases/download/v' + state.version + '/' + state.name];
         e.preventDefault();
         pickMirror(mirrors).then(function(u){ location.href = u; });
       }

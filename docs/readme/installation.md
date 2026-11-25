@@ -54,7 +54,7 @@ npm config get prefix
 
 1. GET 版本元数据：<https://u32-local-server.u32.cn/data/win/latest.yml>，取 `version` 字段（形如 `1.8.0`）
 2. 拼直链下载：`https://u32-local-server.u32.cn/download/win/u32-local-server-setup-<version>.exe`（CDN 边缘缓存回源 GitHub Releases；元数据里 `files[0].sha256` 可校验完整性）
-3. **兜底**（直链不可用时）：<https://github.com/u32-cn/u32-local-server/releases/latest>（资产名 `u32-local-server-setup-<版本>.exe`）
+3. **备源**（CDN 探活失败时页面自动切换）：gh-proxy 镜像（`gh-proxy.org` / `cdn.gh-proxy.org`），由下载按钮自动探活选择，无需手动拼；GitHub Releases 不作为用户可见下载地址
 
 **安装行为：**
 - 安装内容：单文件 `u32-ls.exe`（Node SEA，自带运行时），默认装到 `%LOCALAPPDATA%\Programs\u32-local-server`（用户目录，不弹 UAC）

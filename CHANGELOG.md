@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- 🔁 文档站下载按钮去 GitHub 化：初始 href 与内网 `/docs` 打开时不再出现 github.com 地址——`BASE` 固定为公网域（修复本地服务 `/docs` 路径下 fetch latest.yml 404 导致按钮恒为 GitHub 初始值的问题）；GitHub Releases 从文档与页面下载地址中移除，备源仅为 gh-proxy 镜像自动探活
+
 ## [1.11.0] - 2026-11-25
 
 - 🔁 自动升级链路与文档站下载统一：`update.js` 弃用 GitHub API `releases/latest`，版本元数据与安装包下载全部改走 EdgeOne CDN（`/data/win/latest.yml` + `/download/win/<file>`），全用户同一条链路
