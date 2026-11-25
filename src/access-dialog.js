@@ -207,12 +207,16 @@ function show(msg, isErr) {
   resultBox.classList.toggle('err', !!isErr)
   resultBox.textContent = msg
 }
-// 结果展示后自动关窗：允许成功、取消都走这里（window.close 对 window.open 打开的窗口有效）
+// 结果展示后自动关窗：允许成功、取消都走这里
+// window.close() 只对脚本打开的窗口（或 history 长度 1 的标签）生效；被拒时 4 秒后提示手动关闭
 let closeTimer = null
 function showAndClose(msg, isErr) {
   show(msg, isErr)
   if (closeTimer) return
   closeTimer = setTimeout(function() { window.close() }, 3000)
+  setTimeout(function() {
+    resultBox.textContent += '　（浏览器未允许自动关闭，请手动关闭本窗口）'
+  }, 4000)
 }
 function hideResult() { resultBox.style.display = 'none' }
 function setWarning(msg) {
