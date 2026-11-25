@@ -53,13 +53,18 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: |
+          # AppVersion 从 package.json 动态注入，避免硬编码与 tag 不一致（历史踩坑：v1.9.0 打出 1.8.2 安装包）
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $iss = Get-Content scripts/installer.iss -Raw
+          $iss = $iss -replace '(?m)^#define AppVersion ".*"$', "#define AppVersion `"$version`""
+          Set-Content scripts/installer.iss -Value $iss -NoNewline
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = "ISCC.exe" }
           & $iscc scripts/installer.iss
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Get-ChildItem dist
 
-      # installer.iss 的 AppVersion 是写死的，校验产物文件名与 tag 对齐，防止未来忘改
+      # 校验产物文件名与 tag 对齐（AppVersion 已由 package.json 注入，不应再漂移）
       - name: Verify installer exists
         shell: pwsh
         run: |

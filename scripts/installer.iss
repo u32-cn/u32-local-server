@@ -3,7 +3,7 @@
 ; 需先运行 node scripts/build-icon.js 和 node scripts/build-sea.js
 
 #define AppName "u32-local-server"
-#define AppVersion "1.8.2"
+#define AppVersion "1.9.0"
 #define AppPublisher "vtxf"
 #define AppExeName "u32-ls.exe"
 #define AppDir "{userpf}\u32-local-server"
