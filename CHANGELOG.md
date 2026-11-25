@@ -2,21 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.9.0] - 2026-11-25
 
 ### Added
-- ✨ `u32-ls access` 授权页改版：AI 给定的文件夹直接展示，用户点「允许」/「取消」即决定，不必手填路径；「浏览文件夹…」弹页面内居中 iframe 模态框（不新开窗口），可浏览任意目录（不受 allow 限制），选中经 postMessage 回传回填；授权页不显示任何允许/拒绝列表；授权页本身用 Edge/Chrome `--new-window` 在独立浏览器窗口打开（960×720），探测不到则降级默认浏览器
+- ✨ 新增 `u32-ls access [path]`：一次性本地服务 + 浏览器确认页，直接展示给定目录，用户点「允许」即写入（只读/读写可选），即时生效无需重启；这是新增访问规则唯一写入口，AI 只能请求弹窗、禁止直接改配置
+- ✨ 授权页「浏览文件夹…」弹页面内居中 iframe 模态框（不新开窗口），可浏览任意目录（不受 allow 限制），选中经 postMessage 回传回填；授权页不显示任何允许/拒绝列表
+- ✨ 授权页本身用 Edge/Chrome `--app` 在独立应用窗口打开（960×720），探测不到则降级默认浏览器
+- ✨ `/config` 页允许列表下方新增「添加目录」按钮：经 `POST /config/api {action:'launchAccess'}` 拉起授权窗口（不写配置，写入仍由用户在弹窗点「允许」完成）
 
 ### Changed
-- 🔧 允许列表删除迁回 `/config` 页（点「删除」或 `POST /config/api {action:'removeAllow'}`，收紧权限无需弹窗）；临时授权页不再有删除入口，`/api/revoke` 移除。deny 删除仍禁止（410）
-- ✨ 新增 `u32-ls access [path]`：一次性本地服务 + 浏览器确认页，由用户增删 allow/deny 并保存，即时生效无需重启；这是访问规则唯一写入口，AI 只能请求弹窗、禁止直接改配置
-
-### Changed
-- 🔒 `/config/api` 的 `add`/`remove`/`setAllowWrite`/`resolvePath` 已移除（返回 410 Gone + AI 引导）；`/config` 页允许/拒绝列表改只读，MIME/端口保留
+- 🔒 `/config/api` 的 `add`/`remove`/`setAllowWrite`/`resolvePath` 已移除（返回 410 Gone + AI 引导）
+- 🔧 允许列表删除迁回 `/config` 页（点「删除」或 `POST /config/api {action:'removeAllow'}`，收紧权限无需弹窗）；deny 删除仍禁止（410）
 - 🔧 主服务每个请求按配置文件 mtime 取最新配置（`getLiveConfig`），授权保存后立即生效
 
 ### Docs
-- 📝 新增 `docs/readme/access.md`；README / AGENTS.md / llms.txt / config.md / cli.md 同步 AI 行为约束
+- 📝 新增 `docs/readme/access.md`；README / AGENTS.md / llms.txt / config.md / cli.md / file-access.md 同步 AI 行为约束
 
 ## [1.8.2] - 2026-11-21
 

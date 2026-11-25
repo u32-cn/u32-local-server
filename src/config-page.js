@@ -149,7 +149,8 @@ function renderPage(config, addr) {
     <div class="rule-list" id="allow-list">
       ${allowHtml || '<div class="empty">空 = 拒绝所有文件访问</div>'}
     </div>
-    <div class="access-notice">新增访问规则走 <code>u32-ls access</code> 弹窗由用户确认；删除本页直接操作、即时生效。${escapeHtml(ACCESS_WRITE_GUIDE)}</div>
+    <div class="add-row"><button class="btn btn-primary" type="button" onclick="addDirectory()">添加目录</button></div>
+    <div class="access-notice">点「添加目录」弹出授权窗口，由用户选目录并确认；删除本页直接操作、即时生效。${escapeHtml(ACCESS_WRITE_GUIDE)}</div>
   </div>
 
   <div class="section">
@@ -207,6 +208,11 @@ async function api(method, body) {
   })
   if (!res.ok) { const t = await res.text(); alert(t); return null }
   return res.json()
+}
+// 拉起授权弹窗：不传路径，由用户在弹窗里浏览选中并点「允许」
+async function addDirectory() {
+  const r = await api('POST', { action: 'launchAccess' })
+  if (r && !r.ok) alert('授权窗口启动失败，请在普通终端执行 u32-ls access')
 }
 // 删除允许规则＝收紧权限，直接删、即时生效，无需用户弹窗授权
 async function removeAllow(p, ruleEl) {
@@ -361,6 +367,18 @@ function handleApi(req, res) {
 
       const config = loadConfig()
 
+      // 仅拉起授权弹窗，不写配置；写入仍由用户在弹窗里点「允许」完成
+      if (data.action === 'launchAccess') {
+        const ok = launchAccess()
+        res.writeHead(200, {
+          'Content-Type': 'application/json',
+          'access-control-allow-origin': '*',
+          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+          'access-control-allow-headers': '*',
+        })
+        return res.end(JSON.stringify({ ok }))
+      }
+
       // 删除允许列表条目＝收紧权限，无需弹窗授权，直接删；deny 删除仍禁止（放宽权限）
       if (data.action === 'removeAllow') {
         const p = require('./config').resolvePath(String(data.path || '').trim())
@@ -494,6 +512,34 @@ function triggerDaemonCmd(cmd) {
     child.unref()
   } catch (err) {
     logger.error(`[ERROR] Failed to trigger ${cmd}: ${err.message}\n`)
+  }
+}
+
+// 拉起授权弹窗（`access` 一次性服务）：从 /config 页「添加目录」按钮触发。
+// Windows 经 start 间接层脱离服务进程树，避免服务重启/停止时连带杀死授权窗；
+// detached + unref：服务继续运行，授权弹窗独立存活。
+function launchAccess() {
+  const { spawn } = require('child_process')
+  const { IS_SEA } = require('./sea-assets')
+  try {
+    const target = IS_SEA
+      ? `"${process.execPath}" access`
+      : `"${process.execPath}" "${process.argv[1]}" access`
+    let child
+    if (process.platform === 'win32') {
+      child = spawn('cmd.exe', ['/d', '/s', '/c', `start "" ${target}`], {
+        detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true
+      })
+    } else {
+      const args = IS_SEA ? ['access'] : [process.argv[1], 'access']
+      child = spawn(process.execPath, args, { detached: true, stdio: 'ignore' })
+    }
+    child.on('error', (err) => logger.error(`[ERROR] Failed to launch access: ${err.message}\n`))
+    child.unref()
+    return true
+  } catch (err) {
+    logger.error(`[ERROR] Failed to launch access: ${err.message}\n`)
+    return false
   }
 }
 
