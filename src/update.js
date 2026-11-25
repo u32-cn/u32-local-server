@@ -128,7 +128,7 @@ function fetchUrl(url, headers, _isRetry) {
         res.resume()
         return resolve(fetchUrl(res.headers.location, headers, _isRetry))
       }
-      if (res.statusCode !== 200) {
+      if (res.statusCode !== 200 && res.statusCode !== 206) {
         res.resume()
         return reject(new Error('HTTP ' + res.statusCode + ' for ' + url))
       }
@@ -143,8 +143,8 @@ function fetchUrl(url, headers, _isRetry) {
         reject(err)
       }
     })
-    req.setTimeout(15000, () => {
-      ulog('  -> GET timeout after 15s, destroying request')
+    req.setTimeout(30000, () => {
+      ulog('  -> GET timeout after 30s, destroying request')
       req.destroy(new Error('timeout: ' + url))
     })
   })
@@ -200,15 +200,15 @@ function compareVersions(a, b) {
   return 0
 }
 
-// 缓存目录清理：只保留 fileName 这一个安装包；删旧版 exe 与 .part 残片（fileName 为 null 全清）
+// 缓存目录清理：只保留 fileName 这一个安装包；删旧版 exe（fileName 为 null 全清）。
+// .part 不在此删——它是断点续传的进度，删除交给下载循环的 have>=total 分支。
 function pruneCache(fileName) {
   try {
     if (!fs.existsSync(UPDATE_DIR)) return
     for (const name of fs.readdirSync(UPDATE_DIR)) {
       const keep = name === fileName
       const isExe = /^u32-local-server-setup-.*\.exe$/.test(name)
-      const isPart = name.endsWith('.part')
-      if (!keep && (isExe || isPart)) {
+      if (!keep && isExe) {
         try { fs.unlinkSync(path.join(UPDATE_DIR, name)) } catch {}
       }
     }
@@ -314,60 +314,136 @@ async function downloadLatest(preFetched) {
     state.progress = 0
     state.error = null
     fs.mkdirSync(UPDATE_DIR, { recursive: true })
-    // 先清旧版与残片，保证目录里最终只有一个 exe
+    // 先清旧版与残片，保证目录里最终只有一个 exe（.part 例外：续传要复用）
     pruneCache(null)
     const dest = path.join(UPDATE_DIR, info.assetName)
     const part = dest + '.part'
     ulog(`download: ${info.downloadUrl}`)
     ulog(`download: -> ${part}`)
-    const { res, viaFallback, headers: fbHeaders } = await fetchToFile(info.downloadUrl, { 'User-Agent': 'u32-local-server-updater' }, part)
-    if (viaFallback) {
-      // PowerShell 降级：文件已落盘，直接走原子改名
-      const sz = fs.existsSync(part) ? fs.statSync(part).size : -1
-      ulog(`download: PowerShell fallback done, size=${sz}, renaming to ${dest}`)
-      fs.renameSync(part, dest)
-      state.downloading = false
-      state.progress = 100
-      state.downloaded = true
-      state.downloadedFile = dest
-      return status()
+
+    // 断点续传 + 自动重试：慢链路下长下载易被中途 RST（实测 80% 处 ECONNRESET）。
+    // .part 已有字节数作为 Range 起点续传，最多 MAX_DL_RETRIES 次重试；总量以首轮响应为准。
+    const MAX_DL_RETRIES = 5
+    let total = 0
+    let attempt = 0
+    /* eslint-disable no-await-in-loop */
+    for (;;) {
+      attempt += 1
+      let have = fs.existsSync(part) ? fs.statSync(part).size : 0
+      if (total > 0 && have >= total) {
+        ulog(`resume: .part already complete (${have}/${total})`)
+        have = total // 直接走校验改名
+      }
+      if (total > 0) ulog(`attempt #${attempt}: resuming from byte ${have}/${total}`)
+      const reqHeaders = { 'User-Agent': 'u32-local-server-updater' }
+      if (have > 0) reqHeaders.Range = `bytes=${have}-`
+      let keep = null // 续传时内容长度（剩余字节数）
+      let res, viaFallback
+      try {
+        // destPath 恒传 part：TLS 降级时 PS 直接全量覆盖 .part（不支持续传，等价重头），统一 rename 语义
+        ;({ res, viaFallback } = await fetchToFile(info.downloadUrl, reqHeaders, part))
+      } catch (err) {
+        // 建连/响应头阶段失败（超时、ECONNRESET 等）：计入重试，续传循环里再来
+        ulog(`attempt #${attempt}: request failed: ${err.message}`)
+        if (attempt >= MAX_DL_RETRIES) throw err
+        const waitS = Math.min(30, 3 * attempt)
+        ulog(`retry: waiting ${waitS}s before attempt #${attempt + 1}`)
+        await new Promise(r => setTimeout(r, waitS * 1000))
+        continue
+      }
+      if (viaFallback) {
+        // PowerShell 降级：不支持 Range，全量覆盖 .part 后改名（续传场景等价从头重下）
+        const sz = fs.existsSync(part) ? fs.statSync(part).size : -1
+        ulog(`download: PowerShell fallback done, size=${sz}, renaming to ${dest}`)
+        fs.renameSync(part, dest)
+        state.downloading = false
+        state.progress = 100
+        state.downloaded = true
+        state.downloadedFile = dest
+        return status()
+      }
+      if (res.statusCode === 206) {
+        // 续传响应：Content-Range: bytes=<have>-<end>/<total>
+        const m = (res.headers['content-range'] || '').match(/\/(\d+)$/)
+        total = m ? parseInt(m[1], 10) : total
+        keep = parseInt(res.headers['content-length'] || '0', 10)
+        ulog(`resume: server accepted Range, remaining=${keep}/${total - have}`)
+      } else if (res.statusCode === 200) {
+        // 全量响应：首轮，或服务器不支持 Range（重试时被忽略 Range 从头发全量）
+        total = parseInt(res.headers['content-length'] || '0', 10)
+        if (have > 0) {
+          ulog('resume: server ignored Range (200), restarting from scratch')
+          have = 0 // 从头写（覆盖 .part）
+        }
+      } else if (res.statusCode === 416) {
+        // Range Not Satisfiable：.part 已等于或超过 total（可能上次断在收尾）
+        res.resume()
+        if (total > 0 && have >= total) {
+          ulog(`resume: 416 but .part size ${have} >= total ${total}, treating as complete`)
+          break
+        }
+        ulog(`resume: 416 with .part size ${have}, total unknown/invalid — restarting from scratch`)
+        try { fs.unlinkSync(part) } catch {}
+        have = 0
+        if (attempt >= MAX_DL_RETRIES) throw new Error('HTTP 416 and .part unusable')
+        continue
+      } else {
+        // 意外状态码（4xx/5xx，fetchUrl 已放过 200/206/3xx）：计入重试
+        res.resume()
+        ulog(`attempt #${attempt}: request failed: unexpected HTTP ${res.statusCode}`)
+        if (attempt >= MAX_DL_RETRIES) throw new Error(`HTTP ${res.statusCode} for ${info.downloadUrl}`)
+        const waitS = Math.min(30, 3 * attempt)
+        ulog(`retry: waiting ${waitS}s before attempt #${attempt + 1}`)
+        await new Promise(r => setTimeout(r, waitS * 1000))
+        continue
+      }
+      ulog(`download: streaming, ${have > 0 ? `resuming at ${have}, ` : ''}content-length=${keep || total || 'unknown'}`)
+      const ok = await new Promise((resolve) => {
+        const out = fs.createWriteStream(part, have > 0 ? { flags: 'a' } : undefined)
+        let got = have // 累计含已续传部分
+        let lastLogged = -10 // 每 10% 打一行进度，避免刷屏
+        let aborted = false
+        res.on('data', (c) => {
+          got += c.length
+          state.progress = total > 0 ? Math.min(100, Math.floor(got / total * 100)) : 0
+          if (total > 0 && state.progress >= lastLogged + 10) {
+            lastLogged = Math.floor(state.progress / 10) * 10
+            ulog(`download: ${state.progress}% (${got}/${total})`)
+          }
+        })
+        res.on('aborted', () => {
+          aborted = true
+          ulog(`download: RESPONSE ABORTED at ${got}/${total || '?'} bytes — 连接被对端或网络中断`)
+          resolve(false)
+        })
+        res.on('error', (e) => {
+          if (!aborted) ulog(`download: response error at ${got} bytes: ${e.message}`)
+          resolve(false)
+        })
+        out.on('error', (e) => {
+          ulog(`download: write error at ${got} bytes: ${e.message}`)
+          resolve(false)
+        })
+        out.on('finish', () => {
+          if (aborted) return resolve(false)
+          ulog(`download: stream finished, got ${got} bytes (expected ${total || '?'})`)
+          if (total > 0 && got !== total) {
+            ulog(`download: size mismatch — will retry`)
+            resolve(false)
+          } else {
+            resolve(true)
+          }
+        })
+        res.pipe(out)
+      })
+      if (ok) break
+      if (attempt >= MAX_DL_RETRIES) {
+        throw new Error(`download failed after ${attempt} attempts (last: got ${fs.statSync(part).size}/${total} bytes)`)
+      }
+      const waitS = Math.min(30, 3 * attempt)
+      ulog(`retry: waiting ${waitS}s before attempt #${attempt + 1}`)
+      await new Promise(r => setTimeout(r, waitS * 1000))
     }
-    const total = parseInt(res.headers['content-length'] || '0', 10)
-    ulog(`download: streaming, content-length=${total || 'unknown'}`)
-    await new Promise((resolve, reject) => {
-      const out = fs.createWriteStream(part)
-      let got = 0
-      let lastLogged = 0 // 每 10% 打一行进度，避免刷屏
-      res.on('data', (c) => {
-        got += c.length
-        state.progress = total > 0 ? Math.min(100, Math.floor(got / total * 100)) : 0
-        if (total > 0 && state.progress >= lastLogged + 10) {
-          lastLogged = Math.floor(state.progress / 10) * 10
-          ulog(`download: ${state.progress}% (${got}/${total})`)
-        }
-      })
-      res.on('aborted', () => {
-        ulog(`download: RESPONSE ABORTED at ${got}/${total || '?'} bytes — 连接被对端或网络中断`)
-        reject(new Error(`response aborted at ${got}/${total || '?'} bytes`))
-      })
-      res.on('error', (e) => {
-        ulog(`download: response error at ${got} bytes: ${e.message}`)
-        reject(e)
-      })
-      out.on('error', (e) => {
-        ulog(`download: write error at ${got} bytes: ${e.message}`)
-        reject(e)
-      })
-      out.on('finish', () => {
-        ulog(`download: stream finished, got ${got} bytes (expected ${total || '?'})`)
-        if (total > 0 && got !== total) {
-          reject(new Error(`size mismatch: got ${got}, expected ${total}`))
-        } else {
-          resolve()
-        }
-      })
-      res.pipe(out)
-    })
     const finalSize = fs.statSync(part).size
     fs.renameSync(part, dest)
     ulog(`download: OK, ${finalSize} bytes -> ${dest}`)
