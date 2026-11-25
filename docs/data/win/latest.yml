@@ -1,7 +1,7 @@
-version: 1.10.0
-path: download/win/u32-local-server-setup-1.10.0.exe
+version: 1.10.1
+path: download/win/u32-local-server-setup-1.10.1.exe
 files:
-  - url: u32-local-server-setup-1.10.0.exe
-    size: 24420197
-    sha256: 583f4122b1d50c464b8c58df71e37957346b60f8e7e05e047967836ee88616b9
+  - url: u32-local-server-setup-1.10.1.exe
+    size: 24420336
+    sha256: 4f19f6d1e25644e60eb51d1bb323ef4589c5529f9cb9fc36efe22ed2705b34ad
 
