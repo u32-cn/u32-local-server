@@ -313,7 +313,7 @@ function bindEvents() {
   els.configBtn.addEventListener('click', () => {
     // 打开授权对话框（相对路径：/picker → /access-dialog；反代 /xyz/picker → /xyz/access-dialog）；
     // 弹窗屏幕居中；关闭后刷新侧栏允许目录
-    const w = 800, h = 720
+    const w = 560, h = 480
     const x = Math.max(0, (screen.width - w) / 2 + (screen.availLeft || 0))
     const y = Math.max(0, (screen.availHeight - h) / 2 + (screen.availTop || 0))
     const win = window.open('../access-dialog', 'u32-access-dialog', 'width=' + w + ',height=' + h + ',left=' + x + ',top=' + y)

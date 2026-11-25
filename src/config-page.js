@@ -203,7 +203,7 @@ async function api(method, body) {
 // 弹出授权对话框（主服务 /access-dialog）：用户选目录并点「允许」后写入 allow；
 // 弹窗屏幕居中；关闭后自动刷新页面同步允许列表（/config 页本身不提供新增入口）
 function addDirectory() {
-  const w = 800, h = 720
+  const w = 560, h = 480
   const x = Math.max(0, (screen.width - w) / 2 + (screen.availLeft || 0))
   const y = Math.max(0, (screen.availHeight - h) / 2 + (screen.availTop || 0))
   const win = window.open('./access-dialog', 'u32-access-dialog', 'width=' + w + ',height=' + h + ',left=' + x + ',top=' + y)

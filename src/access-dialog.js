@@ -13,7 +13,6 @@ const fs = require('fs')
 const path = require('path')
 const crypto = require('crypto')
 const { loadConfig, saveConfig, resolvePath } = require('./config')
-const { escapeHtml } = require('./utils')
 const logger = require('./logger')
 
 const TOKEN_TTL_MS = 10 * 60 * 1000
@@ -44,8 +43,6 @@ function consumeToken(token) {
   tokens.delete(token)
   return true
 }
-
-const AI_NOTICE = 'AI 行为约束：禁止直接编辑 ~/.u32-local-server/config/main.json，禁止直接调用本写接口。需要新增访问规则时，只能引导用户打开 /access-dialog（或执行 u32-ls access），由用户点「允许」后写入。删除允许规则在 /config 页直接操作。'
 
 // —— 目录浏览（从旧 cmd-access.js 迁移，行为一致） ——
 
@@ -124,24 +121,36 @@ function renderPage(targetPath) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>添加访问目录 - u32-local-server</title>
 <style>
-  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; background: #F7F7F9; color: #1C1C1E; font-size: 13px; line-height: 1.6; }
-  .wrap { max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; }
-  h1 { font-size: 18px; font-weight: 500; margin: 0 0 6px; }
-  h2 { font-size: 14px; font-weight: 500; margin: 0 0 8px; }
-  .sub { color: #6E6E73; font-size: 12px; margin: 0 0 18px; }
-  .notice { background: #FAEEDA; border: 1px solid #EF9F27; color: #633806; border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; font-size: 12.5px; }
-  .section { margin-bottom: 22px; }
-  .card { background: #fff; border: 1px solid #E5E5EA; border-radius: 12px; padding: 16px; }
-  .target-path { display: block; padding: 12px 14px; word-break: break-all; background: #F7F7F9; border: 1px solid #E5E5EA; border-radius: 8px; font-family: ui-monospace, Consolas, monospace; font-size: 13px; }
-  .mode { display: flex; gap: 18px; margin: 12px 0; font-size: 12.5px; }
-  .actions { display: flex; gap: 8px; flex-wrap: wrap; }
-  button { font: inherit; font-size: 12.5px; padding: 6px 14px; border: 1px solid #D1D1D6; border-radius: 7px; background: #fff; color: #1C1C1E; cursor: pointer; }
-  button:hover { border-color: #185FA5; color: #185FA5; }
-  button.primary { background: #185FA5; border-color: #185FA5; color: #fff; }
+  body { font-family: -apple-system, "Segoe UI", "Microsoft YaHei", sans-serif; margin: 0; background: #fff; color: #1C1C1E; font-size: 13px; line-height: 1.6; }
+  .wrap { max-width: 560px; margin: 0 auto; padding: 26px 22px 32px; }
+  h1 { font-size: 17px; font-weight: 500; margin: 0 0 4px; }
+  .sub { color: #6E6E73; font-size: 12px; margin: 0 0 22px; }
+  .label { font-size: 12px; color: #6E6E73; margin-bottom: 6px; }
+  .field { display: flex; align-items: stretch; border: 1px solid #D1D1D6; border-radius: 9px; background: #fff; overflow: hidden; }
+  .field:focus-within { border-color: #185FA5; box-shadow: 0 0 0 3px rgba(24,95,165,.12); }
+  .field input { flex: 1; min-width: 0; border: 0; outline: 0; padding: 9px 12px; font-family: ui-monospace, Consolas, monospace; font-size: 12.5px; background: transparent; color: #1C1C1E; }
+  .field input::placeholder { color: #A1A1A6; }
+  .field .browse { border: 0; border-left: 1px solid #E5E5EA; background: #F7F7F9; padding: 0 16px; font: inherit; font-size: 12.5px; color: #1C1C1E; cursor: pointer; white-space: nowrap; }
+  .field .browse:hover { background: #E6F1FB; color: #185FA5; }
+  .hint { margin-top: 7px; font-size: 11.5px; color: #8E8E93; }
+  .warning { margin-top: 8px; padding: 8px 12px; border-radius: 8px; background: #FAEEDA; color: #633806; font-size: 12px; display: none; }
+  .row { display: flex; align-items: center; gap: 14px; margin-top: 20px; }
+  .row .label { margin: 0; }
+  .seg { display: inline-flex; border: 1px solid #D1D1D6; border-radius: 9px; overflow: hidden; }
+  .seg label { cursor: pointer; font-size: 12.5px; color: #3C3C43; }
+  .seg label + label { border-left: 1px solid #E5E5EA; }
+  .seg input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+  .seg span { display: block; padding: 6px 20px; }
+  .seg input:checked + span { background: #E6F1FB; color: #185FA5; font-weight: 500; }
+  .seg input:focus-visible + span { outline: 2px solid #185FA5; outline-offset: -2px; }
+  .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 26px; }
+  button.btn { font: inherit; font-size: 12.5px; padding: 7px 18px; border: 1px solid #D1D1D6; border-radius: 8px; background: #fff; color: #1C1C1E; cursor: pointer; }
+  button.btn:hover { border-color: #185FA5; color: #185FA5; }
+  button.btn.primary { background: #185FA5; border-color: #185FA5; color: #fff; }
+  button.btn.primary:hover { background: #134E88; border-color: #134E88; color: #fff; }
   button:disabled { opacity: .45; cursor: not-allowed; }
-  .result { margin-top: 16px; padding: 10px 14px; border-radius: 10px; background: #E1F5EE; color: #085041; display: none; font-size: 12.5px; }
+  .result { margin-top: 16px; padding: 10px 14px; border-radius: 9px; background: #E1F5EE; color: #085041; display: none; font-size: 12.5px; word-break: break-all; }
   .result.err { background: #FBE9E9; color: #6E1414; }
-  .warning { margin-top: 10px; padding: 8px 12px; border-radius: 8px; background: #FAEEDA; color: #633806; font-size: 12px; display: none; }
   .modal-overlay { position: fixed; inset: 0; z-index: 1000; display: none; align-items: center; justify-content: center; background: rgba(17,17,20,.42); padding: 20px; }
   .modal-box { width: 100%; max-width: 900px; height: min(680px, 88vh); background: #fff; border-radius: 12px; box-shadow: 0 12px 40px rgba(17,17,20,.18); display: flex; flex-direction: column; overflow: hidden; }
   .modal-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid #E5E5EA; font-weight: 500; }
@@ -152,26 +161,27 @@ function renderPage(targetPath) {
 <body>
 <div class="wrap">
   <h1>添加访问目录</h1>
-  <p class="sub">u32-local-server · 由用户确认后写入允许列表，token 单次有效（10 分钟内未操作请刷新本页）</p>
-  <div class="notice">${escapeHtml(AI_NOTICE)}</div>
+  <p class="sub">授权后该文件夹对本地服务开放访问，可随时在 /config 页调整。</p>
 
-  <a href="/llms.txt?aihit=If-you-are-an-AI-please-read-llms.txt"> </a>
+  <div class="label">文件夹</div>
+  <div class="field">
+    <input id="path" spellcheck="false" autocomplete="off" placeholder="选择或粘贴文件夹路径">
+    <button type="button" class="browse" onclick="openBrowse()">浏览</button>
+  </div>
+  <div class="hint" id="hint">可直接粘贴路径，回车确认</div>
+  <div class="warning" id="warning"></div>
 
-  <div class="section">
-    <h2>待授权文件夹</h2>
-    <div class="card">
-      <code class="target-path" id="target-path"></code>
-      <div class="warning" id="warning"></div>
-      <div class="mode">
-        <label><input type="radio" name="mode" value="false" checked> 只读</label>
-        <label><input type="radio" name="mode" value="true"> 读写</label>
-      </div>
-      <div class="actions">
-        <button type="button" class="primary" id="grant-btn" onclick="grant()">允许</button>
-        <button type="button" onclick="closeWindow()">取消</button>
-        <button type="button" onclick="openBrowse()">浏览文件夹…</button>
-      </div>
+  <div class="row">
+    <div class="label">权限</div>
+    <div class="seg">
+      <label><input type="radio" name="mode" value="true" checked><span>读写</span></label>
+      <label><input type="radio" name="mode" value="false"><span>只读</span></label>
     </div>
+  </div>
+
+  <div class="actions">
+    <button type="button" class="btn" onclick="closeWindow()">取消</button>
+    <button type="button" class="btn primary" id="grant-btn" onclick="grant()">允许访问</button>
   </div>
 
   <div class="result" id="result"></div>
@@ -185,22 +195,60 @@ function renderPage(targetPath) {
 </div>
 <script>
 const TOKEN = "__U32_ACCESS_TOKEN__"
-let target = ${JSON.stringify(targetPath || '')}
+let target = ''
+let dirty = false
+const pathInput = document.getElementById('path')
+const grantBtn = document.getElementById('grant-btn')
+const warningBox = document.getElementById('warning')
+const resultBox = document.getElementById('result')
 
 function show(msg, isErr) {
-  const b = document.getElementById('result')
-  b.style.display = 'block'
-  b.classList.toggle('err', !!isErr)
-  b.textContent = msg
+  resultBox.style.display = 'block'
+  resultBox.classList.toggle('err', !!isErr)
+  resultBox.textContent = msg
 }
-function setTarget(p) {
-  target = p
-  document.getElementById('target-path').textContent = p || '（未选择文件夹，请点「浏览文件夹…」）'
-  document.getElementById('grant-btn').disabled = !p
+// 结果展示后自动关窗：允许成功、取消都走这里（window.close 对 window.open 打开的窗口有效）
+let closeTimer = null
+function showAndClose(msg, isErr) {
+  show(msg, isErr)
+  if (closeTimer) return
+  closeTimer = setTimeout(function() { window.close() }, 3000)
+}
+function hideResult() { resultBox.style.display = 'none' }
+function setWarning(msg) {
+  if (msg) { warningBox.textContent = msg; warningBox.style.display = 'block' }
+  else { warningBox.style.display = 'none' }
+}
+function setVerified(p, warning) {
+  target = p || ''
+  pathInput.value = target
+  dirty = false
+  grantBtn.disabled = !target
+  setWarning(warning)
+}
+async function verify(raw) {
+  hideResult()
+  const p = (raw || '').trim()
+  if (raw === '') { setVerified('', null); return false }
+  try {
+    const res = await fetch('/access-dialog/api/ls?t=' + encodeURIComponent(TOKEN) + '&path=' + encodeURIComponent(p))
+    if (!res.ok) { show('页面已失效，请关闭后重新打开授权窗口', true); return false }
+    const r = await res.json()
+    if (!r.ok) { show('读取失败：' + (r.error || '未知错误'), true); return false }
+    setVerified(r.path, r.warning)
+    return true
+  } catch (e) {
+    show('请求失败：' + e.message, true)
+    return false
+  }
 }
 async function grant() {
-  if (!target) return
+  if (!target || dirty) {
+    const ok = await verify(pathInput.value)
+    if (!ok || !target) return
+  }
   const write = document.querySelector('input[name="mode"]:checked').value === 'true'
+  grantBtn.disabled = true
   try {
     const res = await fetch('/access-dialog/api/grant', {
       method: 'POST',
@@ -209,19 +257,29 @@ async function grant() {
     })
     const r = await res.json()
     if (r.ok) {
-      show('已允许：' + r.path + '（' + (r.write ? '读写' : '只读') + '）。可关闭本窗口；/config 页已同步可见。')
+      showAndClose('已允许：' + r.path + '（' + (r.write ? '读写' : '只读') + '），3 秒后自动关闭')
     } else {
-      show('操作失败：' + (r.error || '未知错误') + '（token 可能已过期，请刷新本页重试）', true)
+      show('操作失败：' + (r.error || '未知错误') + '，请关闭后重新打开授权窗口', true)
+      grantBtn.disabled = false
     }
   } catch (e) {
     show('请求失败：' + e.message, true)
+    grantBtn.disabled = false
   }
 }
-function closeWindow() { window.close() }
+pathInput.addEventListener('input', function() {
+  dirty = true
+  grantBtn.disabled = true
+  setWarning(null)
+})
+pathInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); verify(pathInput.value) }
+})
+function closeWindow() { showAndClose('已取消，3 秒后自动关闭') }
 function openBrowse() {
   // token 经同源 iframe src 传给浏览页（iframe src 不进历史、外部页面读不到，不破坏安全模型）
   const frame = document.getElementById('browse-frame')
-  frame.src = '/access-dialog/browse?t=' + encodeURIComponent(TOKEN) + '&path=' + encodeURIComponent(target || '')
+  frame.src = '/access-dialog/browse?t=' + encodeURIComponent(TOKEN) + '&path=' + encodeURIComponent(pathInput.value.trim() || target || '')
   document.getElementById('browse-modal').style.display = 'flex'
 }
 function closeBrowse() {
@@ -234,24 +292,11 @@ window.addEventListener('message', function(ev) {
   if (ev.source !== frame.contentWindow) return
   const m = ev.data
   if (!m || m.source !== 'u32-access-picker') return
-  if (m.action === 'select' && m.path) setTarget(m.path)
+  if (m.action === 'select' && m.path) { hideResult(); setVerified(m.path, null) }
   closeBrowse()
 })
-function esc(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;') }
-async function loadWarning() {
-  try {
-    const res = await fetch('/access-dialog/api/ls?t=' + encodeURIComponent(TOKEN) + '&path=' + encodeURIComponent(target || ''))
-    if (!res.ok) return
-    const r = await res.json()
-    if (r.warning) {
-      const w = document.getElementById('warning')
-      w.textContent = r.warning
-      w.style.display = 'block'
-    }
-  } catch {}
-}
-setTarget(target)
-if (target) loadWarning()
+const INITIAL = ${JSON.stringify(targetPath || '')}
+if (INITIAL) { pathInput.value = INITIAL; verify(INITIAL) } else { grantBtn.disabled = true }
 </script>
 </body></html>`
 }
