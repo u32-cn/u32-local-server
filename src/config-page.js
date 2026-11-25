@@ -88,17 +88,6 @@ function renderPage(config, addr) {
     .foot-line .links { margin-left: auto; display: flex; gap: 16px; }
     .foot-line a:hover { color: var(--blue); }
 
-    .restart-page { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; background: var(--bg); }
-    .restart-content { max-width: 460px; padding: 32px; text-align: center; }
-    .restart-content h1 { margin: 0 0 8px; font-size: 19px; font-weight: 500; }
-    .restart-content p { margin: 0 0 6px; font-size: 13px; color: var(--dim); }
-    .countdown { margin: 18px 0; font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; }
-    .new-url {
-      display: block; margin: 16px 0; padding: 10px 14px; word-break: break-all;
-      font-family: var(--mono); font-size: 12.5px; color: var(--dim);
-      background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm);
-    }
-
     @media (max-width: 700px) {
       .page { padding: 20px 16px; }
       .rule { flex-wrap: wrap; }
@@ -125,8 +114,6 @@ function renderPage(config, addr) {
     </nav>
     <div style="display:flex;align-items:center;gap:8px">
       <span id="restart-notice" class="restart-notice" style="display:none">需要重启</span>
-      <button id="stop-btn" class="btn btn-danger" type="button" onclick="stopServer()">停止服务</button>
-      <button id="restart-btn" class="btn btn-primary" type="button" onclick="restartServer()">重启服务</button>
     </div>
   </div>
 </header>
@@ -178,14 +165,6 @@ function renderPage(config, addr) {
 
 <script>
 let needsRestart = false
-const RENDERED_PORT = ${config.port}
-
-// 配置页地址：直连本机（当前端口=渲染时端口）时换用新端口；经反向代理访问时保持当前地址不变
-function newConfigUrl(newPort) {
-  const u = new URL('./config', location.href)
-  if (location.port === String(RENDERED_PORT)) u.port = String(newPort)
-  return u.href
-}
 
 function showRestartNotice() {
   needsRestart = true
@@ -232,54 +211,8 @@ async function savePort() {
   await api('POST', { action: 'setPort', port })
   showRestartNotice()
 }
-async function restartServer() {
-  const port = parseInt(document.getElementById('port').value)
-  if (!validPort(port)) { alert('端口必须是 1-65535 的整数'); return }
-  await api('POST', { action: 'restart', port })
-  showRestartingPage(port)
-}
-async function stopServer() {
-  if (!confirm('确定停止服务吗？停止后本页面将无法访问，可通过托盘图标、开始菜单快捷方式或终端 u32-ls start 重新启动。')) return
-  const result = await api('POST', { action: 'stop' })
-  if (result) showStoppedPage()
-}
-function showStoppedPage() {
-  document.body.innerHTML = '<div class="restart-page">' +
-    '<div class="restart-content">' +
-    '<h1>服务已停止</h1>' +
-    '<p>本页面由服务提供，服务停止后已无法访问。</p>' +
-    '<p>重新启动方式：托盘图标菜单、开始菜单快捷方式，或终端执行 <code>u32-ls start</code></p>' +
-    '</div>' +
-    '</div>'
-}
 function validPort(port) {
   return Number.isInteger(port) && port >= 1 && port <= 65535
-}
-function showRestartingPage(newPort) {
-  const html = '<div class="restart-page">' +
-    '<div class="restart-content">' +
-    '<h1>服务器正在重启</h1>' +
-    '<p>服务将在新端口启动</p>' +
-    '<div class="countdown"><span id="countdown">6</span> 秒</div>' +
-    '<p class="new-url">' + newConfigUrl(newPort) + '</p>' +
-    '<button class="btn btn-primary" type="button" onclick="jumpNow(' + newPort + ')">立即跳转</button>' +
-    '</div>' +
-    '</div>'
-  document.body.innerHTML = html
-
-  let seconds = 6
-  const countdownEl = document.getElementById('countdown')
-  const timer = setInterval(() => {
-    seconds--
-    countdownEl.textContent = seconds
-    if (seconds <= 0) {
-      clearInterval(timer)
-      jumpNow(newPort)
-    }
-  }, 1000)
-}
-function jumpNow(port) {
-  window.location.href = newConfigUrl(port)
 }
 function visitPath(path) {
   const encodedPath = encodeURIComponent(path)

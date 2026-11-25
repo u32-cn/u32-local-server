@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- 🔁 `/config` 顶栏恢复稳定导航：移除「停止服务」「重启服务」按钮及其页面逻辑（restart/stop API 保留未动），端口修改后按提示走 `u32-ls restart` / `u32-ls stop` 或托盘菜单
+
 - 🔁 文档站下载按钮去 GitHub 化：初始 href 与内网 `/docs` 打开时不再出现 github.com 地址——`BASE` 固定为公网域（修复本地服务 `/docs` 路径下 fetch latest.yml 404 导致按钮恒为 GitHub 初始值的问题）；GitHub Releases 从文档与页面下载地址中移除，备源仅为 gh-proxy 镜像自动探活
 
 ## [1.11.0] - 2026-11-25
