@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-25
+
 ### Added
 - ✨ 新增主服务内授权对话框 `/access-dialog`（`src/access-dialog.js`）：替代旧 `u32-ls access` 一次性临时服务。用户选目录、点「允许」即写入 allow，即时生效。安全模型：token 服务端生成只内嵌页面 HTML（无单独领 token 接口、URL 不带 token）、写请求须 `X-Access-Token` 自定义头、token 单次消耗 10 分钟过期、`X-Frame-Options: DENY` + `CSP: frame-ancestors 'self'` 禁外站 iframe、写接口纳入 router 层 Origin 校验——外部网页拿不到凭证无法写授权
 - ✨ 入口三合一：`/config` 页「添加目录」按钮（弹窗打开、关闭后自动刷新列表）、`/picker` 侧栏齿轮按钮（弹窗打开、关闭后刷新侧栏）、终端 `u32-ls access [path]` 降级为薄壳（仅用浏览器打开对话框，不再起任何临时服务、无 5 分钟超时）；外部宿主可给用户链接 `http://127.0.0.1:<port>/access-dialog?path=<目录>` 确认
