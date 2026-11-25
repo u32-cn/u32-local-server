@@ -311,8 +311,19 @@ function bindEvents() {
   els.newFolderBtn.addEventListener('click', () => actions.newFolder())
   els.helpBtn.addEventListener('click', () => actions.showHelp())
   els.configBtn.addEventListener('click', () => {
-    // 相对路径：/picker → /config；反代 /xyz/picker → /xyz/config
-    window.open('config', '_blank', 'noopener')
+    // 打开授权对话框（相对路径：/picker → /access-dialog；反代 /xyz/picker → /xyz/access-dialog）；
+    // 弹窗屏幕居中；关闭后刷新侧栏允许目录
+    const w = 800, h = 720
+    const x = Math.max(0, (screen.width - w) / 2 + (screen.availLeft || 0))
+    const y = Math.max(0, (screen.availHeight - h) / 2 + (screen.availTop || 0))
+    const win = window.open('../access-dialog', 'u32-access-dialog', 'width=' + w + ',height=' + h + ',left=' + x + ',top=' + y)
+    if (win) win.focus()
+    const timer = setInterval(() => {
+      if (win.closed) {
+        clearInterval(timer)
+        nav.renderSidebar()
+      }
+    }, 500)
   })
 
   els.filenameDrop.addEventListener('click', () => actions.showFilenameMenu(els.filenameDrop))

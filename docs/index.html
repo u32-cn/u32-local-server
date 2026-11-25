@@ -67,7 +67,7 @@
           浏览器自带的 File System Access API 也能读写本地文件，但句柄权限不能跨会话保持：刷新、换标签、隔天再来都要用户重新确认，普通网页无法给一个应用长期备好一组目录。
         </p>
         <ul class="use-list" data-u32-name="use-file-list">
-          <li data-u32-name="use-file-li1"><b>允许目录写进配置</b>，逐条标只读或读写，<code>deny</code> 优先</li>
+          <li data-u32-name="use-file-li1"><b>允许目录写进配置</b>，逐条标只读或读写，授权对话框一次确认</li>
           <li data-u32-name="use-file-li2">页面走 <code>/file/</code> 读、<code>/api/fs</code> 写，不再弹授权框</li>
           <li data-u32-name="use-file-li3"><b>自带文件选择器</b> <code>/picker</code>，打开 / 选目录 / 另存为，嵌 iframe 即用</li>
         </ul>
@@ -105,7 +105,7 @@
         <tbody data-u32-name="compare-tbody">
           <tr data-u32-name="tr1"><th data-u32-name="tr1-k">授权</th><td class="no" data-u32-name="tr1-a">每次会话都要用户重新确认</td><td class="yes" data-u32-name="tr1-b"><b>配置一次，长期有效</b></td></tr>
           <tr data-u32-name="tr2"><th data-u32-name="tr2-k">多目录</th><td class="no" data-u32-name="tr2-a">逐个授权，无法预置</td><td class="yes" data-u32-name="tr2-b">允许列表可写多条，逐条标只读 / 读写</td></tr>
-          <tr data-u32-name="tr3"><th data-u32-name="tr3-k">拒绝规则</th><td class="no" data-u32-name="tr3-a">无</td><td class="yes" data-u32-name="tr3-b"><code>deny</code> 优先于 <code>allow</code></td></tr>
+          <tr data-u32-name="tr3"><th data-u32-name="tr3-k">授权方式</th><td class="no" data-u32-name="tr3-a">每次弹系统权限框</td><td class="yes" data-u32-name="tr3-b">授权对话框点「允许」写入允许列表</td></tr>
           <tr data-u32-name="tr4"><th data-u32-name="tr4-k">文件选择器</th><td class="no" data-u32-name="tr4-a">自己实现</td><td class="yes" data-u32-name="tr4-b"><code>/picker</code> 直接嵌入</td></tr>
           <tr data-u32-name="tr5"><th data-u32-name="tr5-k">AI 调用</th><td class="no" data-u32-name="tr5-a">不可，权限绑在用户手势上</td><td class="yes" data-u32-name="tr5-b">可通过 <code>/bridge</code> 下发指令</td></tr>
         </tbody>

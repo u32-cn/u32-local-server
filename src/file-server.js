@@ -256,7 +256,7 @@ function renderAllowListPage(config, urlPath) {
     : `<li class="empty-message">
         <div class="empty-icon"><i class="fas fa-folder-open"></i></div>
         <div class="empty-text">当前允许列表为空</div>
-        <div class="empty-hint">请执行 <code>u32-ls access</code> 打开浏览器确认页，由用户添加要访问的路径（AI 禁止直接改配置）</div>
+        <div class="empty-hint">请执行 <code>u32-ls access</code>（或打开 <code>/access-dialog</code>）授权对话框，由用户添加要访问的路径（AI 禁止直接改配置）</div>
       </li>`
 
   return `<!DOCTYPE html>
@@ -442,18 +442,14 @@ function serve(req, res, config) {
   if (!isAllowed(filePath, config)) {
     const reasons = []
     const solutions = [
-      '执行 u32-ls access 打开浏览器授权页，由用户确认后将该路径加入允许列表',
+      '执行 u32-ls access（或打开 /access-dialog）授权对话框，由用户确认后将该路径加入允许列表',
       'AI 禁止直接编辑配置文件或调用写配置的 HTTP 接口'
     ]
-    const deny = (config.file.access.deny || []).filter(r => filePath.startsWith(r))
     const allow = (config.file.access.allow || []).map(e => typeof e === 'string' ? e : e.path)
-    if (deny.length > 0) {
-      reasons.push(`该路径被拒绝列表拦截：${deny.join(', ')}`)
-      solutions.push('从拒绝列表中移除匹配的规则')
-    } else if (allow.length > 0) {
+    if (allow.length > 0) {
       reasons.push(`该路径不在允许列表中，当前允许列表：${allow.join(', ')}`)
     } else {
-      reasons.push('访问被拒绝')
+      reasons.push('访问被拒绝：允许列表为空（空 = 拒绝所有文件访问）')
     }
     logger.error(`[FILE-SERVER] ACCESS DENIED: ${filePath}\n`)
     logger.error(`[FILE-SERVER] Reason: ${reasons.join('；')}\n`)

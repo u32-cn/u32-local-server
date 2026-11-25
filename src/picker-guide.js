@@ -169,8 +169,8 @@ function renderPage(config) {
       <a href="./status">状态</a>
       <a href="./config">配置</a>
       <span class="sep"></span>
-      <a href="./picker">选择器</a>
-      <a href="./picker-demo">演示</a>
+      <a href="./docs" target="_blank" rel="noopener">内网文档 ↗</a>
+      <a href="https://u32-local-server.u32.cn/" target="_blank" rel="noopener">公网文档 ↗</a>
     </nav>
   </div>
 </header>

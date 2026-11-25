@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+- ✨ 新增主服务内授权对话框 `/access-dialog`（`src/access-dialog.js`）：替代旧 `u32-ls access` 一次性临时服务。用户选目录、点「允许」即写入 allow，即时生效。安全模型：token 服务端生成只内嵌页面 HTML（无单独领 token 接口、URL 不带 token）、写请求须 `X-Access-Token` 自定义头、token 单次消耗 10 分钟过期、`X-Frame-Options: DENY` + `CSP: frame-ancestors 'self'` 禁外站 iframe、写接口纳入 router 层 Origin 校验——外部网页拿不到凭证无法写授权
+- ✨ 入口三合一：`/config` 页「添加目录」按钮（弹窗打开、关闭后自动刷新列表）、`/picker` 侧栏齿轮按钮（弹窗打开、关闭后刷新侧栏）、终端 `u32-ls access [path]` 降级为薄壳（仅用浏览器打开对话框，不再起任何临时服务、无 5 分钟超时）；外部宿主可给用户链接 `http://127.0.0.1:<port>/access-dialog?path=<目录>` 确认
+
+### Removed
+- 🔥 删除 `src/cmd-access.js`（一次性服务 + 独立授权页 + 内置浏览器，约 490 行）与 `/config/api` 的 `launchAccess` action
+- 🔥 **拒绝列表（deny）功能整体移除**：`/config` 页不再展示；`permission.js` 简化为「allow 命中即放行（读写须 `write=true`），allow 空 = 拒绝所有」；配置加载迁移时自动丢弃存量 `deny` 条目；`summary`/`home` 页删 `denyCount`；403 页删 deny 提示分支
+
+### Changed
+- 🔒 `/config/api` 拒绝名单扩展：`add`/`remove`/`setAllowWrite`/`resolvePath` 之外，`/access-dialog/api/grant` 无 token 直调一律 403（AI 不得程序化写授权）
+- 📝 AI 行为约束更新：新增访问规则只能引导用户打开 `/access-dialog`（或执行 `u32-ls access`），由用户点「允许」写入
+
+### Docs
+- 📝 重写 `docs/readme/access.md`（新机制 + 安全模型表 + deny 移除说明）；`config.md`、`cli.md`、`home.md`、`fs-api.md`、`file-access.md`、`llms.txt`、`index.html` 同步
+
 ## [1.9.0] - 2026-11-25
 
 ### Added

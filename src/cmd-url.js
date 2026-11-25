@@ -41,7 +41,7 @@ function run(argv) {
   if (!fs.existsSync(resolved)) {
     logger.error(`[CMD-URL] WARNING: Path does not exist: ${resolved}\n`)
   } else if (!isAllowed(resolved, config)) {
-    logger.error(`[CMD-URL] WARNING: Path is not accessible (check allow/deny rules): ${resolved}\n`)
+    logger.error(`[CMD-URL] WARNING: Path is not accessible (check allow rules): ${resolved}\n`)
   }
 
   const urlPath = toUrlPath(resolved)

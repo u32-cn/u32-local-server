@@ -111,7 +111,7 @@ function renderPage(config, opts) {
       <div class="side-group" data-u32-name="sidebar-roots-group">
         <div class="side-group-title" data-u32-name="sidebar-roots-title">
           <span>允许的目录</span>
-          <button class="gear-btn" id="configBtn" data-u32-name="sidebar-config" title="配置允许列表（新标签打开 /config）"><svg class="ico" data-icon="gear" aria-hidden="true"></svg></button>
+          <button class="gear-btn" id="configBtn" data-u32-name="sidebar-config" title="添加允许目录（打开授权对话框）"><svg class="ico" data-icon="gear" aria-hidden="true"></svg></button>
         </div>
         <div class="side-list" id="rootsList" data-u32-name="sidebar-roots-list"></div>
       </div>

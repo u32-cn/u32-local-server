@@ -40,7 +40,6 @@ function collect(config) {
     pid: process.pid,
     uptimeSec: Math.floor(process.uptime()),
     allowCount: (config.file.access.allow || []).length,
-    denyCount: (config.file.access.deny || []).length,
     bridge: bridgeCounts(),
     artifacts: { count: art.count, bytes: art.bytes },
     services: svc,

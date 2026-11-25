@@ -9,6 +9,8 @@ const artifacts = require('./artifacts')
 const sysinfo = require('./sysinfo')
 const statusPage = require('./status-page')
 const pickerGuide = require('./picker-guide')
+const accessGuide = require('./access-guide')
+const accessDialog = require('./access-dialog')
 const summary = require('./summary')
 const serviceStatus = require('./service-status')
 
@@ -82,7 +84,7 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     }
 
     // 写接口 Origin 校验：阻断恶意网页跨站修改配置/触发服务注册（CSRF）
-    const isWriteApi = url.pathname.startsWith('/config/api') || url.pathname === '/api/service' || url.pathname === '/api/update' || url.pathname === '/api/fs' || (url.pathname.startsWith('/bridge/api/') && (req.method === 'POST' || req.method === 'DELETE'))
+    const isWriteApi = url.pathname.startsWith('/config/api') || url.pathname === '/api/service' || url.pathname === '/api/update' || url.pathname === '/api/fs' || url.pathname.startsWith('/access-dialog/api/') || (url.pathname.startsWith('/bridge/api/') && (req.method === 'POST' || req.method === 'DELETE'))
     if (isWriteApi && !sameOriginOk(req, req.headers.host)) {
       logger.error(`[SECURITY] Rejected cross-origin ${req.method} to ${url.pathname} (Origin: ${req.headers.origin})\n`)
       return sendPlain(res, 403, '403 Forbidden: cross-origin request rejected')
@@ -138,6 +140,14 @@ function setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPage
     if (url.pathname.startsWith('/config/api')) {
       logger.debug(`[INFO] Routing to config API handler\n`)
       return configServe(req, res)
+    }
+    if (url.pathname === '/access-guide') {
+      logger.debug(`[INFO] Routing to access guide page handler\n`)
+      return accessGuide.serve(req, res, config)
+    }
+    if (url.pathname === '/access-dialog' || url.pathname.startsWith('/access-dialog/')) {
+      logger.debug(`[INFO] Routing to access dialog handler\n`)
+      return accessDialog.serve(req, res, url)
     }
     if (url.pathname === '/status/api') {
       // 运行状态 JSON（机器可读，字段与页面同源同脱敏）

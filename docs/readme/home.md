@@ -43,7 +43,6 @@
   "pid": 20796,
   "uptimeSec": 6,
   "allowCount": 3,
-  "denyCount": 0,
   "bridge": { "apps": 0, "instances": 0 },
   "artifacts": { "count": 0, "bytes": 0 },
   "services": { "platform": "win32", "autostart": true, "contextMenu": true, "degraded": false }

@@ -16,7 +16,7 @@
 
 ## AI 行为约束（必读）
 
-**禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用任何写配置的 HTTP 接口（含 `/config/api`）。新增访问规则必须执行 `u32-ls access` 打开浏览器确认页由用户点「允许」；删除允许规则走 `/config/api` 的 `removeAllow`（收紧权限，无需弹窗）。** `u32-ls access` 是新增的唯一写入口；`add`/`remove`/`setAllowWrite` 已移除（410）。详见 [/docs/access.md](/docs/access.md)。
+**禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用任何写配置的 HTTP 接口（含 `/config/api` 与 `/access-dialog/api/grant`）。新增访问规则必须引导用户打开授权对话框 `/access-dialog`（或执行 `u32-ls access`）由用户点「允许」；删除允许规则走 `/config/api` 的 `removeAllow`（收紧权限，无需弹窗）。** `/access-dialog` 是新增的唯一写入口（写接口需对话框页面内嵌 token，外部直调必 403）；`add`/`remove`/`setAllowWrite` 已移除（410）。详见 [/docs/access.md](/docs/access.md)。
 
 ## 功能文档索引（GET 每个 .md 获取完整用法）
 
@@ -24,14 +24,14 @@
 - [启动与上手](/docs/getting-started.md) - 启动验证、AI 会话回收陷阱与计划任务方案、首次 403 解除
 - [首页 /](/docs/home.md) - 控制台：状态带、系统集成注册状态、软件更新、临时产物；`GET /api/summary`、`GET /api/service-status`、`POST /api/service`、`GET/POST /api/update`
 - [命令行 u32-ls](/docs/cli.md) - 全部子命令与文件位置
-- [本地文件访问 /file/](/docs/file-access.md) - 路径规则、目录浏览；**默认拒绝所有文件，403 先执行 u32-ls access 由用户授权允许列表**
+- [本地文件访问 /file/](/docs/file-access.md) - 路径规则、目录浏览；**默认拒绝所有文件，403 先打开 /access-dialog 由用户授权允许列表**
 - [文件写入 API /api/fs](/docs/fs-api.md) - 七个动作（content 为 base64），按路径 只读/读写
 - [CORS 代理 /proxy/](/docs/cors-proxy.md) - 转发任意 HTTP 请求补 CORS 头
 - [浏览器桥 /bridge](/docs/bridge.md) - 页面注册 → AI 下发指令同步等回包；大产物 HTTP 直传落盘；多实例用 ID短码指定
 - [桥连接机制](/docs/bridge-connection-lifecycle.md) - 心跳、判死时序；排查桥不在线先读这篇
 - [文件选择器 /picker](/docs/picker.md) - 网页选择器，iframe 嵌入；引导页 /picker-guide，演示 /picker-demo
-- [访问规则授权 u32-ls access](/docs/access.md) - **新增 allow/deny 唯一写入口**：浏览器确认页 + picker 风格弹窗选目录，点「允许」即生效；删除允许规则走 /config；AI 禁止直接改配置
-- [配置管理 /config](/docs/config.md) - 允许/拒绝列表只读展示；MIME、端口可改，即时生效；顶栏可重启/停止服务（重启不依赖 PATH）
+- [访问规则授权 /access-dialog](/docs/access.md) - **新增 allow 唯一写入口**：主服务内授权对话框（token 单次有效、禁外站 iframe），点「允许」即生效；终端 `u32-ls access [path]` 为打开对话框的薄壳；删除允许规则走 /config；AI 禁止直接改配置
+- [配置管理 /config](/docs/config.md) - 允许列表可删除（新增走 /access-dialog）；MIME、端口可改，即时生效；顶栏可重启/停止服务（重启不依赖 PATH）。拒绝列表（deny）已移除
 - [运行状态 /status](/docs/status.md) - 只读指标页 + `GET /status/api`；不含敏感信息
 
 ## 全局约定

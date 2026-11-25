@@ -27,8 +27,8 @@ if (cmd === '-h' || cmd === '--help' || cmd === 'help') {
 功能特性：
   • 文件服务          通过 HTTP 访问本地文件系统
   • CORS 代理         绕过跨域限制，代理请求任意 URL
-  • 权限控制          允许列表/拒绝列表保护文件访问
-  • 访问规则授权      u32-ls access 弹窗，由用户增删 allow/deny（AI 禁止直接改配置）
+  • 权限控制          允许列表保护文件访问
+  • 访问规则授权      /access-dialog 弹窗，由用户增加 allow（AI 禁止直接改配置）
   • 配置管理          Web 界面可视化配置
   • 浏览器桥          AI 与浏览器页面间长轮询消息桥
   • 跨平台支持        Windows/Linux/macOS
@@ -45,7 +45,7 @@ Commands:
   url <path>       Get the URL for a local file/directory  获取本地文件/目录的URL
   open [path]      Open home page or file in browser       打开首页或指定文件（无参数打开首页）
   copy-url <path>  Copy URL to clipboard                    复制URL到剪贴板
-  access [path]    Open consent page to manage allow/deny   弹窗由用户增删访问规则（唯一写入口）
+  access [path]    Open access dialog to add allow rule     打开授权对话框由用户增加允许目录（唯一写入口）
   register         Register auto-start service              注册开机自启动服务（Windows添加右键菜单）
   unregister       Unregister auto-start service            取消注册开机自启动服务
   update [-y]      Check & download latest installer        检查并下载最新安装包（Windows 安装包版；-y 跳确认拉起安装）
@@ -98,10 +98,23 @@ if (cmd === 'clear-artifacts') {
 }
 
 if (cmd === 'access') {
-  // 访问规则授权弹窗：AI 只能请求弹窗，由用户在浏览器里增删 allow/deny 后落盘。
-  // 这是应用内唯一的访问规则写入口，禁止程序化写配置。
-  const { run } = require('./cmd-access')
-  run(process.argv.slice(3))
+  // 访问规则授权对话框（薄壳）：打开主服务内的 /access-dialog 页面，由用户点「允许」写入 allow。
+  // 这是应用内唯一的访问规则写入口，禁止程序化写配置；不再起任何临时服务。
+  const { spawn } = require('child_process')
+  const { resolvePath } = require('./config')
+  const input = String(process.argv[3] || '').trim()
+  const q = input ? '?path=' + encodeURIComponent(resolvePath(input)) : ''
+  const url = `http://127.0.0.1:${config.port}/access-dialog${q}`
+  try {
+    if (process.platform === 'win32') {
+      spawn('cmd', ['/c', 'start', '""', url], { detached: true, stdio: 'ignore', windowsHide: true }).unref()
+    } else {
+      spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref()
+    }
+    process.stderr.write(`[ACCESS] ${url}\n`)
+  } catch (err) {
+    process.stderr.write(`[ACCESS] 打开浏览器失败（${err.message}），请手动访问：${url}\n`)
+  }
   return
 }
 
@@ -248,7 +261,6 @@ function startServer() {
   logger.info(`[INFO] Config loaded successfully\n`)
   logger.info(`[INFO]   Port: ${config.port}\n`)
   logger.info(`[INFO]   Allow rules: ${(config.file.access.allow || []).map(e => typeof e === "string" ? e : e.path).join(', ') || '(empty)'}\n`)
-  logger.info(`[INFO]   Deny rules: ${(config.file.access.deny || []).join(', ') || '(empty)'}\n`)
 
   server = http.createServer()
   setupRoutes(server, fileServe, proxy, configServe, homeServe, proxyPageServe, bridgeStatusServe, pickerServe, pickerDemoServe, config)

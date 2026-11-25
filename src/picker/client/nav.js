@@ -312,7 +312,7 @@ export function createNav({ els, state, cfg, onLoaded, onFilePath }) {
     renderSidebar()
     if (!cfg.roots.length) {
       els.emptyPane.hidden = false
-      els.emptyPane.textContent = '允许列表为空，请点击侧栏「允许的目录」旁的齿轮按钮前往配置页添加目录'
+      els.emptyPane.textContent = '允许列表为空，请点击侧栏「允许的目录」旁的齿轮按钮打开授权对话框添加目录'
       updateNavButtons()
       return
     }

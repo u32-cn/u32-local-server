@@ -6,9 +6,9 @@
 
 1. **零依赖**：运行期禁止引入任何第三方 npm 包，只用 Node.js 内置模块。唯一例外是构建期 devDependency `postject`（SEA 注入 blob 用），它不进运行包；不得新增其他 npm 依赖
 2. **跨平台**：所有改动必须兼容 Windows 与 Linux；路径统一 POSIX 风格（`/` 分隔符，Windows 盘符 `C:\path` → `/C:/path`）
-3. **权限不变式**：`deny` 优先于 `allow`；`allow` 为空 = 拒绝所有。任何改动不得破坏该模型
+3. **权限不变式**：allow 命中即放行（读写须条目 `write=true`）；`allow` 为空 = 拒绝所有。拒绝列表（deny）已移除，不得重新引入。任何改动不得破坏该模型
 4. **MIME 优先级**：配置 `file.mime` 覆盖内置默认值，不得反转
-5. **访问规则新增只能经弹窗**：allow/deny 的**新增**唯一写入口是 `u32-ls access` 浏览器确认页，由用户浏览选中文件夹并点「允许」后落盘。**AI 禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用 `/config/api` 的 `add`/`remove`/`setAllowWrite`（已移除，返回 410）**。删除允许规则是收紧权限，可在 `/config` 页点「删除」或调 `removeAllow`，不需弹窗；deny 删除仍禁止。AI 需要新增授权时只能提示用户执行 `u32-ls access`，不得代改配置
+5. **访问规则新增只能经弹窗**：allow 的**新增**唯一写入口是主服务内授权对话框 `/access-dialog`，由用户浏览选中文件夹并点「允许」后落盘。**AI 禁止直接编辑 `~/.u32-local-server/config/main.json`，禁止调用 `/config/api` 的 `add`/`remove`/`setAllowWrite`（已移除，返回 410），禁止直接调 `/access-dialog/api/grant`（需页面内嵌 token，外部直调必 403）**。删除允许规则是收紧权限，可在 `/config` 页点「删除」或调 `removeAllow`，不需弹窗。AI 需要新增授权时只能引导用户打开 `/access-dialog`（或执行 `u32-ls access`），不得代改配置
 6. **敏感信息红线**：
    - `/status` 不采集任何敏感信息是既定设计（`process.env`、磁盘卷、主机名、用户名/uid/gid、家目录、网络接口 IP/MAC 一律不读取），改代码不得引入采集
    - 不提交含本机绝对路径、密钥、token 的文件（register 生成的脚本统一写入 `runtime/`，该目录已在 `.gitignore`，保持忽略）

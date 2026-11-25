@@ -26,8 +26,7 @@ function getDefaultConfig() {
     port: 19527,
     file: {
       access: {
-        allow: [],
-        deny: []
+        allow: []
       },
       mime: {
         '.html': 'text/html', '.htm': 'text/html',
@@ -99,12 +98,13 @@ function loadConfig() {
   }
   logger.info(`[CONFIG] Config loaded successfully\n`)
   // 一次性迁移：旧格式 → 新格式
-  // 1) allow 字符串条目 → { path, write: true }（存量路径默认读写）；deny 保持字符串
+  // 1) allow 字符串条目 → { path, write: true }（存量路径默认读写）
   // 2) 条目路径统一 resolvePath（~/ 展开为绝对路径）
   // 3) 删除已废弃的 file.write 开关（写权限改由路径级 write 字段控制）
+  // 4) deny（拒绝列表）已废弃：迁移时直接丢弃
   const access = raw.file && raw.file.access
   if (access) {
-    const before = JSON.stringify([access.allow, access.deny])
+    const before = JSON.stringify(access.allow)
     const migrateEntry = (e) => {
       if (typeof e === 'string') return { path: resolvePath(e), write: true }
       return { path: resolvePath(e.path), write: e.write !== false }
@@ -114,8 +114,11 @@ function loadConfig() {
       return list.filter(e => !seen.has(e.path) && seen.add(e.path))
     }
     access.allow = dedupePaths((access.allow || []).map(migrateEntry))
-    access.deny = [...new Set((access.deny || []).map(resolvePath))]
-    if (JSON.stringify([access.allow, access.deny]) !== before) {
+    if (access.deny !== undefined) {
+      delete access.deny
+      logger.info(`[CONFIG] Dropped deprecated deny list (feature removed)\n`)
+    }
+    if (JSON.stringify(access.allow) !== before) {
       saveConfig(raw)
       logger.info(`[CONFIG] Migrated access rules to allow entries { path, write }\n`)
     }
@@ -133,8 +136,7 @@ function resolveConfig(config) {
   resolved.file.access.allow = (resolved.file.access.allow || []).map(e =>
     typeof e === 'string' ? { path: resolvePath(e), write: true } : Object.assign({}, e, { path: resolvePath(e.path) })
   )
-  resolved.file.access.deny = (resolved.file.access.deny || []).map(resolvePath)
-  logger.info(`[CONFIG] Resolved ${resolved.file.access.allow.length} allow rules and ${resolved.file.access.deny.length} deny rules\n`)
+  logger.info(`[CONFIG] Resolved ${resolved.file.access.allow.length} allow rules\n`)
   return resolved
 }
 

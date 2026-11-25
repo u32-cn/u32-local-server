@@ -3,15 +3,14 @@ const logger = require('./logger')
 const { escapeHtml } = require('./utils')
 const PACKAGE_JSON = require('../package.json')
 
-// 访问规则：新增只能经 `u32-ls access` 弹窗；删除（收紧权限）可在本页直接操作。
-const ACCESS_WRITE_GUIDE = '禁止直接编辑配置文件或调用写配置的 HTTP 接口。新增访问规则必须执行 u32-ls access 打开浏览器确认页，由用户点「允许」后才会写入；删除允许规则可在本页直接操作。'
+// 访问规则：新增只能经 /access-dialog 弹窗（用户点「允许」）；删除（收紧权限）可在本页直接操作。
+const ACCESS_WRITE_GUIDE = '禁止直接编辑配置文件或调用写配置的 HTTP 接口。新增访问规则必须打开 /access-dialog 授权对话框（或执行 u32-ls access），由用户点「允许」后才会写入；删除允许规则可在本页直接操作。'
 
 function renderPage(config, addr) {
   // 存储值即 resolvePath 后的绝对路径，直接展示，不做 ~ 反向转换
   const display = config
   const version = PACKAGE_JSON.version
   const allowCount = display.file.access.allow.length
-  const denyCount = display.file.access.deny.length
   const mimeEntries = Object.entries(display.file.mime || {}).sort((a, b) => a[0].localeCompare(b[0]))
   const mimeCount = mimeEntries.length
 
@@ -20,9 +19,6 @@ function renderPage(config, addr) {
     const writable = typeof e === 'string' ? true : e.write !== false
     return `<div class="rule" data-type="allow" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code><div class="rule-actions"><span class="mode-label">${writable ? '读写' : '只读'}</span><button class="visit-btn" type="button">访问</button><button class="del-btn allow-del" type="button">删除</button></div></div>`
   }).join('')
-  const denyHtml = display.file.access.deny.map(p =>
-    `<div class="rule" data-type="deny" data-path="${escapeHtml(p)}"><code>${escapeHtml(p)}</code></div>`
-  ).join('')
   const mimeHtml = mimeEntries.map(([ext, type]) =>
     `<div class="rule" data-type="mime" data-ext="${escapeHtml(ext)}"><code>${escapeHtml(ext)}</code><code>${escapeHtml(type)}</code><div class="rule-actions"><button class="del-btn" type="button">删除</button></div></div>`
   ).join('')
@@ -75,7 +71,9 @@ function renderPage(config, addr) {
     .access-notice { margin: 10px 0 0; padding: 10px 14px; font-size: 12.5px; color: var(--amber); background: var(--amber-soft); border-radius: var(--radius); }
     .empty { padding: 14px 16px; font-size: 12.5px; color: var(--faint); }
 
-    .add-row { display: flex; gap: 8px; margin-top: 10px; }
+    .add-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+    .add-row .guide-link { font-size: 12px; color: var(--dim); }
+    .add-row .guide-link:hover { color: var(--blue); }
     .add-row input[type="text"] { flex: 1; min-width: 0; }
     .add-row input.ext { flex: 0 0 110px; }
 
@@ -149,15 +147,8 @@ function renderPage(config, addr) {
     <div class="rule-list" id="allow-list">
       ${allowHtml || '<div class="empty">空 = 拒绝所有文件访问</div>'}
     </div>
-    <div class="add-row"><button class="btn btn-primary" type="button" onclick="addDirectory()">添加目录</button></div>
-    <div class="access-notice">点「添加目录」弹出授权窗口，由用户选目录并确认；删除本页直接操作、即时生效。${escapeHtml(ACCESS_WRITE_GUIDE)}</div>
-  </div>
-
-  <div class="section">
-    <div class="section-title">拒绝列表 <span class="cnt">${denyCount} 条 · 优先级高于允许列表 · 只读</span></div>
-    <div class="rule-list">
-      ${denyHtml || '<div class="empty">空</div>'}
-    </div>
+    <div class="add-row"><button class="btn btn-primary" type="button" onclick="addDirectory()">添加目录</button><a class="guide-link" href="./access-guide">接入指引 ↗</a></div>
+    <div class="access-notice">点「添加目录」弹出授权对话框，由用户选目录并确认；删除本页直接操作、即时生效。${escapeHtml(ACCESS_WRITE_GUIDE)}</div>
   </div>
 
   <div class="section">
@@ -209,10 +200,20 @@ async function api(method, body) {
   if (!res.ok) { const t = await res.text(); alert(t); return null }
   return res.json()
 }
-// 拉起授权弹窗：不传路径，由用户在弹窗里浏览选中并点「允许」
-async function addDirectory() {
-  const r = await api('POST', { action: 'launchAccess' })
-  if (r && !r.ok) alert('授权窗口启动失败，请在普通终端执行 u32-ls access')
+// 弹出授权对话框（主服务 /access-dialog）：用户选目录并点「允许」后写入 allow；
+// 弹窗屏幕居中；关闭后自动刷新页面同步允许列表（/config 页本身不提供新增入口）
+function addDirectory() {
+  const w = 800, h = 720
+  const x = Math.max(0, (screen.width - w) / 2 + (screen.availLeft || 0))
+  const y = Math.max(0, (screen.availHeight - h) / 2 + (screen.availTop || 0))
+  const win = window.open('./access-dialog', 'u32-access-dialog', 'width=' + w + ',height=' + h + ',left=' + x + ',top=' + y)
+  if (win) win.focus()
+  const timer = setInterval(() => {
+    if (win.closed) {
+      clearInterval(timer)
+      location.reload()
+    }
+  }, 500)
 }
 // 删除允许规则＝收紧权限，直接删、即时生效，无需用户弹窗授权
 async function removeAllow(p, ruleEl) {
@@ -330,14 +331,21 @@ async function removeMime(ext, ruleEl) {
     showRestartNotice()
   }
 }
-// 事件委托：允许列表删除（收紧权限，直接删）+ MIME 删除 + 允许列表「访问」
+// 事件委托：允许列表删除（收紧权限，直接删）+ MIME 删除 + 允许列表「访问」；删除前 confirm 防误删
 document.addEventListener('click', function(e) {
   const del = e.target.closest('.del-btn')
   if (del) {
     const rule = del.closest('.rule')
     if (!rule) return
-    if (rule.dataset.type === 'allow') removeAllow(rule.dataset.path, rule)
-    else if (rule.dataset.type === 'mime') removeMime(rule.dataset.ext, rule)
+    if (rule.dataset.type === 'allow') {
+      const label = (rule.querySelector('code') || {}).textContent || rule.dataset.path
+      if (!confirm('确定删除允许目录「' + label + '」吗？删除后该目录（含子目录）将立即无法访问。')) return
+      removeAllow(rule.dataset.path, rule)
+    }
+    else if (rule.dataset.type === 'mime') {
+      if (!confirm('确定删除 MIME 映射「' + rule.dataset.ext + '」吗？')) return
+      removeMime(rule.dataset.ext, rule)
+    }
     return
   }
   const visit = e.target.closest('.visit-btn')
@@ -358,28 +366,16 @@ function handleApi(req, res) {
       const data = JSON.parse(body)
       logger.debug(`[CONFIG-API] Received action: ${data.action}\n`)
 
-      // 访问规则写入口已迁移到 `u32-ls access` 弹窗；这里一律拒绝并给出引导（含给 AI 的禁令）
+      // 访问规则写入口已迁移到 /access-dialog 弹窗；这里一律拒绝并给出引导（含给 AI 的禁令）
       if (['add', 'remove', 'setAllowWrite', 'resolvePath'].includes(data.action)) {
         logger.error(`[CONFIG-API] Rejected access-rule write action: ${data.action}\n`)
         res.writeHead(410, { 'Content-Type': 'text/plain; charset=utf-8' })
-        return res.end(`410 Gone: 新增访问规则请用 u32-ls access 弹窗；删除请用 removeAllow。${ACCESS_WRITE_GUIDE}`)
+        return res.end(`410 Gone: 新增访问规则请打开 /access-dialog 弹窗；删除请用 removeAllow。${ACCESS_WRITE_GUIDE}`)
       }
 
       const config = loadConfig()
 
-      // 仅拉起授权弹窗，不写配置；写入仍由用户在弹窗里点「允许」完成
-      if (data.action === 'launchAccess') {
-        const ok = launchAccess()
-        res.writeHead(200, {
-          'Content-Type': 'application/json',
-          'access-control-allow-origin': '*',
-          'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
-          'access-control-allow-headers': '*',
-        })
-        return res.end(JSON.stringify({ ok }))
-      }
-
-      // 删除允许列表条目＝收紧权限，无需弹窗授权，直接删；deny 删除仍禁止（放宽权限）
+      // 删除允许列表条目＝收紧权限，无需弹窗授权，直接删
       if (data.action === 'removeAllow') {
         const p = require('./config').resolvePath(String(data.path || '').trim())
         config.file.access.allow = (config.file.access.allow || []).filter(e =>
@@ -515,33 +511,6 @@ function triggerDaemonCmd(cmd) {
   }
 }
 
-// 拉起授权弹窗（`access` 一次性服务）：从 /config 页「添加目录」按钮触发。
-// Windows 经 start 间接层脱离服务进程树，避免服务重启/停止时连带杀死授权窗；
-// detached + unref：服务继续运行，授权弹窗独立存活。
-function launchAccess() {
-  const { spawn } = require('child_process')
-  const { IS_SEA } = require('./sea-assets')
-  try {
-    const target = IS_SEA
-      ? `"${process.execPath}" access`
-      : `"${process.execPath}" "${process.argv[1]}" access`
-    let child
-    if (process.platform === 'win32') {
-      child = spawn('cmd.exe', ['/d', '/s', '/c', `start "" ${target}`], {
-        detached: true, stdio: 'ignore', windowsHide: true, windowsVerbatimArguments: true
-      })
-    } else {
-      const args = IS_SEA ? ['access'] : [process.argv[1], 'access']
-      child = spawn(process.execPath, args, { detached: true, stdio: 'ignore' })
-    }
-    child.on('error', (err) => logger.error(`[ERROR] Failed to launch access: ${err.message}\n`))
-    child.unref()
-    return true
-  } catch (err) {
-    logger.error(`[ERROR] Failed to launch access: ${err.message}\n`)
-    return false
-  }
-}
 
 function serve(req, res) {
   const url = new URL(req.url, `http://${req.headers.host}`)

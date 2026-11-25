@@ -12,7 +12,7 @@ const summary = require('./summary')
 
 const GITHUB_URL = 'https://github.com/u32-cn/u32-local-server'
 
-// 六个功能入口：顺序即视觉顺序，路径保持相对写法以兼容反向代理子路径
+// 功能入口：顺序即视觉顺序，路径保持相对写法以兼容反向代理子路径
 const ENTRIES = [
   {
     name: '文件访问', rel: './file/', desc: '浏览允许列表内的目录与文件，支持目录列表与直链下载',
@@ -21,6 +21,10 @@ const ENTRIES = [
   {
     name: '文件选择器', rel: './picker-guide', desc: '三种模式配置脚本与在线试用，Win10 风格对话框，可嵌 iframe',
     icon: '<path d="M5 3l14 8-6 1 3 6-3 1-3-6-4 4z"/>',
+  },
+  {
+    name: '访问规则授权', rel: './access-guide', desc: '授权对话框接入指引与在线试用，新增允许目录的唯一写入口',
+    icon: '<path d="M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/>',
   },
   {
     name: 'CORS 代理', rel: './proxy/', desc: '绕过跨域限制，转发任意 HTTP/HTTPS 请求',
@@ -35,7 +39,7 @@ const ENTRIES = [
     icon: '<path d="M3 12h4l3-7 4 14 3-7h4"/>',
   },
   {
-    name: '配置', rel: './config', desc: '端口、允许 / 拒绝列表、MIME 类型覆盖',
+    name: '配置', rel: './config', desc: '端口、允许列表管理、MIME 类型覆盖',
     icon: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.2 5.2l2.1 2.1M16.7 16.7l2.1 2.1M18.8 5.2l-2.1 2.1M7.3 16.7l-2.1 2.1"/>',
   },
 ]
@@ -342,7 +346,7 @@ function serve(req, res, config) {
     logger.error(`[HOME-PAGE] summary failed: ${e.message}\n`)
     snap = {
       generatedAt: Date.now(), port: config.port, pid: process.pid, uptimeSec: 0,
-      allowCount: 0, denyCount: 0, bridge: { apps: 0, instances: 0 },
+      allowCount: 0, bridge: { apps: 0, instances: 0 },
       artifacts: { count: 0, bytes: 0 },
       services: { platform: process.platform, autostart: false, contextMenu: false, degraded: true },
     }
