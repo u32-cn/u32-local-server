@@ -14,6 +14,12 @@ const fs = require('fs')
 const path = require('path')
 const os = require('os')
 const https = require('https')
+const logger = require('./logger')
+
+// 下载链路详细日志（console + server.log 双写）：每一步都打，失败能直接从日志定位断点
+function ulog(msg) {
+  logger.info(`[UPDATE] ${msg}\n`)
+}
 
 const PKG = require('../package.json')
 const VERSION = PKG.version
@@ -113,8 +119,11 @@ function parsePsHeaders(out) {
 
 // 统一 https GET：跟随重定向；TLS 证书校验失败（本机 HTTPS MITM 代理）时 Windows 下降级走 PowerShell 系统证书库重试
 function fetchUrl(url, headers, _isRetry) {
+  ulog(`GET ${url}${_isRetry ? ' (retry)' : ''}`)
+  const t0 = Date.now()
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: headers || {} }, (res) => {
+      ulog(`  -> HTTP ${res.statusCode} (${Date.now() - t0}ms) location=${res.headers.location || '-'}`)
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         res.resume()
         return resolve(fetchUrl(res.headers.location, headers, _isRetry))
@@ -126,13 +135,18 @@ function fetchUrl(url, headers, _isRetry) {
       resolve(res)
     })
     req.on('error', (err) => {
+      ulog(`  -> GET error: ${err.code || ''} ${err.message} (after ${Date.now() - t0}ms)`)
       if (!_isRetry && isTlsError(err)) {
+        ulog('  -> TLS cert error, falling back to PowerShell (schannel)')
         resolve(tlsFallback(url, headers))
       } else {
         reject(err)
       }
     })
-    req.setTimeout(15000, () => req.destroy(new Error('timeout: ' + url)))
+    req.setTimeout(15000, () => {
+      ulog('  -> GET timeout after 15s, destroying request')
+      req.destroy(new Error('timeout: ' + url))
+    })
   })
 }
 
@@ -214,12 +228,17 @@ function cachedFileFor(version) {
 
 // 查最新版：读版本元数据 latest.yml（Pages 站点静态文件，与文档站首页同源同链路）
 async function fetchLatest() {
+  ulog(`fetchLatest: GET ${LATEST_YML_URL}`)
   const text = await getText(LATEST_YML_URL)
   const version = (text.match(/^version:\s*(\S+)/m) || [])[1]
   const file = (text.match(/^\s*-\s*url:\s*(\S+)/m) || [])[1] || (text.match(/^path:\s*(\S+)/m) || [])[1]
-  if (!version || !file) throw new Error('latest.yml parse failed')
+  if (!version || !file) {
+    ulog(`fetchLatest: parse FAILED, raw=${JSON.stringify(text.slice(0, 200))}`)
+    throw new Error('latest.yml parse failed')
+  }
   const assetName = file.split('/').pop()
   const latest = 'v' + version
+  ulog(`fetchLatest: version=${version} asset=${assetName} updateAvailable=${compareVersions(latest, VERSION) > 0}`)
   return {
     latest,
     updateAvailable: compareVersions(latest, VERSION) > 0,
@@ -231,6 +250,7 @@ async function fetchLatest() {
 // 一次完整检测：更新状态；发现新版且缓存缺失时自动触发后台下载
 async function check(silent) {
   try {
+    ulog(`check: current=${VERSION}`)
     const info = await fetchLatest()
     state.latest = info.latest
     state.updateAvailable = info.updateAvailable
@@ -240,8 +260,15 @@ async function check(silent) {
       const cached = cachedFileFor(info.latest)
       state.downloadedFile = cached
       state.downloaded = !!cached
-      if (cached) pruneCache(path.basename(cached))
-      else if (!state.downloading) downloadLatest(info).catch(() => {})
+      if (cached) {
+        ulog(`check: installer already cached: ${cached}`)
+        pruneCache(path.basename(cached))
+      } else if (!state.downloading) {
+        ulog('check: new version, no cache -> auto download')
+        downloadLatest(info).catch(() => {})
+      } else {
+        ulog('check: new version, download already in progress')
+      }
     } else {
       // 已是最新：清掉升级完成后的残留安装包
       state.downloaded = false
@@ -250,6 +277,7 @@ async function check(silent) {
     }
     return status()
   } catch (err) {
+    ulog(`check FAILED: ${err.message}`)
     state.error = err.message
     if (!silent) throw err
     return status()
@@ -258,17 +286,25 @@ async function check(silent) {
 
 // 后台下载最新版安装包（.part → 原子改名 → 清旧）；进行中重复调用直接返回
 async function downloadLatest(preFetched) {
-  if (state.downloading) return status()
+  if (state.downloading) {
+    ulog('downloadLatest: already in progress, skip')
+    return status()
+  }
   let info = preFetched
   try {
     if (!info) {
+      ulog('downloadLatest: fetching latest metadata')
       info = await fetchLatest()
       state.latest = info.latest
       state.updateAvailable = info.updateAvailable
-      if (!info.updateAvailable) return status()
+      if (!info.updateAvailable) {
+        ulog(`downloadLatest: no update (latest=${info.latest}, current=${VERSION})`)
+        return status()
+      }
     }
     const cached = cachedFileFor(info.latest)
     if (cached) {
+      ulog(`downloadLatest: cached installer found: ${cached}`)
       state.downloaded = true
       state.downloadedFile = cached
       pruneCache(path.basename(cached))
@@ -282,9 +318,13 @@ async function downloadLatest(preFetched) {
     pruneCache(null)
     const dest = path.join(UPDATE_DIR, info.assetName)
     const part = dest + '.part'
+    ulog(`download: ${info.downloadUrl}`)
+    ulog(`download: -> ${part}`)
     const { res, viaFallback, headers: fbHeaders } = await fetchToFile(info.downloadUrl, { 'User-Agent': 'u32-local-server-updater' }, part)
     if (viaFallback) {
       // PowerShell 降级：文件已落盘，直接走原子改名
+      const sz = fs.existsSync(part) ? fs.statSync(part).size : -1
+      ulog(`download: PowerShell fallback done, size=${sz}, renaming to ${dest}`)
       fs.renameSync(part, dest)
       state.downloading = false
       state.progress = 100
@@ -293,24 +333,50 @@ async function downloadLatest(preFetched) {
       return status()
     }
     const total = parseInt(res.headers['content-length'] || '0', 10)
+    ulog(`download: streaming, content-length=${total || 'unknown'}`)
     await new Promise((resolve, reject) => {
       const out = fs.createWriteStream(part)
       let got = 0
+      let lastLogged = 0 // 每 10% 打一行进度，避免刷屏
       res.on('data', (c) => {
         got += c.length
         state.progress = total > 0 ? Math.min(100, Math.floor(got / total * 100)) : 0
+        if (total > 0 && state.progress >= lastLogged + 10) {
+          lastLogged = Math.floor(state.progress / 10) * 10
+          ulog(`download: ${state.progress}% (${got}/${total})`)
+        }
       })
-      res.on('error', reject)
-      out.on('error', reject)
-      out.on('finish', resolve)
+      res.on('aborted', () => {
+        ulog(`download: RESPONSE ABORTED at ${got}/${total || '?'} bytes — 连接被对端或网络中断`)
+        reject(new Error(`response aborted at ${got}/${total || '?'} bytes`))
+      })
+      res.on('error', (e) => {
+        ulog(`download: response error at ${got} bytes: ${e.message}`)
+        reject(e)
+      })
+      out.on('error', (e) => {
+        ulog(`download: write error at ${got} bytes: ${e.message}`)
+        reject(e)
+      })
+      out.on('finish', () => {
+        ulog(`download: stream finished, got ${got} bytes (expected ${total || '?'})`)
+        if (total > 0 && got !== total) {
+          reject(new Error(`size mismatch: got ${got}, expected ${total}`))
+        } else {
+          resolve()
+        }
+      })
       res.pipe(out)
     })
+    const finalSize = fs.statSync(part).size
     fs.renameSync(part, dest)
+    ulog(`download: OK, ${finalSize} bytes -> ${dest}`)
     state.downloading = false
     state.progress = 100
     state.downloaded = true
     state.downloadedFile = dest
   } catch (err) {
+    ulog(`download FAILED: ${err.message}`)
     state.downloading = false
     state.progress = 0
     state.error = err.message

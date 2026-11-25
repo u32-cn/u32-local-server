@@ -2,6 +2,10 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+- 📝 自动升级链路补详细日志：check/fetchLatest/download 每步打 `[UPDATE]` 日志（console + server.log 双写）——GET URL 与耗时、HTTP 状态与重定向、流式下载每 10% 进度、`res aborted` 中断点字节数、finish 时 got vs expected 大小比对（不符判失败）、落盘路径与最终大小；下载失败原因可直接从日志定位
+
 ## [1.11.1] - 2026-11-25
 
 - 🔁 `/config` 顶栏恢复稳定导航：移除「停止服务」「重启服务」按钮及其页面逻辑（restart/stop API 保留未动），端口修改后按提示走 `u32-ls restart` / `u32-ls stop` 或托盘菜单
