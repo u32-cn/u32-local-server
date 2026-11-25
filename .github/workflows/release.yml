@@ -53,10 +53,14 @@ jobs:
       - name: Build installer
         shell: pwsh
         run: |
-          # AppVersion 从 package.json 动态注入，避免硬编码与 tag 不一致（历史踩坑：v1.9.0 打出 1.8.2 安装包）
+          # AppVersion 从 package.json 动态注入，避免硬编码与 tag 不一致
+          # 坑：CI runner 上 checkout 出的 .iss 是 CRLF，正则里用 `$` 锚行尾会匹配不到（$ 落在 \r 之前），
+          # 替换静默失败 → 打出旧版本号。故用 [^\r\n]* 吃掉整行，并在替换后断言校验。
           $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
           $iss = Get-Content scripts/installer.iss -Raw
-          $iss = $iss -replace '(?m)^#define AppVersion ".*"$', "#define AppVersion `"$version`""
+          $iss = $iss -replace '(?m)^#define AppVersion[^\r\n]*', "#define AppVersion `"$version`""
+          $expect = "#define AppVersion `"$version`""
+          if (-not $iss.Contains($expect)) { Write-Error "AppVersion 注入失败（期望 $expect）"; exit 1 }
           Set-Content scripts/installer.iss -Value $iss -NoNewline
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { $iscc = "ISCC.exe" }

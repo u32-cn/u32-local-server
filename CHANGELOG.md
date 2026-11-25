@@ -21,6 +21,9 @@ All notable changes to this project will be documented in this file.
 - ✨ 授权成功后提示发出即自动关闭窗口；「取消」直接关窗，无需手动关
 - 📝 AI 行为约束更新：新增访问规则只能引导用户打开 `/access-dialog`（或执行 `u32-ls access`），由用户点「允许」写入
 
+### Fixed
+- 🐛 修复发版流水线版本注入静默失败：CI 上 checkout 出的 `scripts/installer.iss` 为 CRLF，注入正则用 `$` 锚行尾匹配不到（`$` 落在 \r 之前），安装包仍按文件里硬编码的旧版本命名、后续校验步骤因此失败；改用 `[^\r\n]*` 吃掉整行 + 替换后断言校验
+
 ### Docs
 - 📝 重写 `docs/readme/access.md`（新机制 + 安全模型表 + deny 移除说明）；`config.md`、`cli.md`、`home.md`、`fs-api.md`、`file-access.md`、`llms.txt`、`index.html` 同步
 
