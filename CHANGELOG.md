@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## [1.11.1] - 2026-11-25
 
 - 🔁 `/config` 顶栏恢复稳定导航：移除「停止服务」「重启服务」按钮及其页面逻辑（restart/stop API 保留未动），端口修改后按提示走 `u32-ls restart` / `u32-ls stop` 或托盘菜单
 
