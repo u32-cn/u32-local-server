@@ -143,11 +143,17 @@ jobs:
           # tag 触发的 checkout 处于 detached HEAD 且基线落后于 main（tag 后 main 可能前进过），
           # 直接 push HEAD:main 会 non-fast-forward 被拒。先 fetch 并把提交 rebase 到 origin/main 顶端
           git fetch origin main
+          # 坑：Build installer 步骤把 installer.iss 的 AppVersion 改写过，dirty tree 会让 rebase 直接拒绝
+          # （"cannot rebase: You have unstaged changes"）。这里丢弃构建期改动再 rebase。
+          git checkout -- scripts/installer.iss
+          git status --porcelain
+          $env:GIT_EDITOR = "true"
           # tag 快照与 origin/main 的工作流文件可能 add/add 冲突；保留 main 版本后继续
           if (-not (git rebase origin/main)) {
-            git checkout --ours .github/workflows/release.yml scripts/installer.iss 2>$null
+            git checkout origin/main -- .github/workflows/release.yml scripts/installer.iss
             git add -A
-            if (-not (git rebase --continue)) { throw 'rebase origin/main 失败，latest.yml 未发布' }
+            git rebase --continue
+            if ($LASTEXITCODE -ne 0) { throw 'rebase origin/main 失败，latest.yml 未发布' }
           }
           git push origin HEAD:refs/heads/main
 
