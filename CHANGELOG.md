@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [1.10.1] - 2026-11-25
+
+### Fixed
+- 🐛 修复更新检测「网络不可达」误报（TLS 降级通道失效）：本机 HTTPS MITM 代理场景下 PowerShell 降级脚本有两处 bug——① headers 拼接产出非法 PS 语法（JSON 字面量混入哈希表），脚本解析直接报错；② PS 5.1 下 `Invoke-WebRequest -OutFile` 返回对象无 `StatusCode`，即使下载成功也输出 `STATUS=0` 被判为失败。改为 try/catch 判成败 + Content-Length 从落盘文件读取。实测同机 `check` 恢复正常（latest v1.10.0, error null）
+
 ## [1.10.0] - 2026-11-25
 
 ### Added

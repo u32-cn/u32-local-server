@@ -64,11 +64,12 @@ function fetchViaPowerShell(url, headers, destPath, toMemory) {
       '$ProgressPreference=\'SilentlyContinue\'',
       `[Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12`,
       `$h=@{}`,
-      headers && Object.keys(headers).length ? `foreach($k in ${JSON.stringify(Object.keys(headers))}){$h[$k]=${JSON.stringify(headers)}[$k]}` : '',
-      `$r=Invoke-WebRequest -UseBasicParsing -Uri '${url.replace(/'/g, '\'\'')}' -Headers $h -OutFile '${tmp.replace(/'/g, '\'\'')}'`,
-      `Write-Output ("STATUS=" + [int]$r.StatusCode)`,
-      `$ct=$r.Headers['Content-Type']; if($ct){Write-Output ("CONTENT_TYPE=" + ($ct -join ','))}`,
-      `$cl=$r.Headers['Content-Length']; if($cl){Write-Output ("CONTENT_LENGTH=" + ($cl -join ','))}`,
+      headers && Object.keys(headers).length
+        ? `$h=@{` + Object.keys(headers).map(k => `'${k.replace(/'/g, "''")}'='${String(headers[k]).replace(/'/g, "''")}'`).join(';') + `}`
+        : '',
+      `$ok=$false; try { Invoke-WebRequest -UseBasicParsing -Uri '${url.replace(/'/g, '\'\'')}' -Headers $h -OutFile '${tmp.replace(/'/g, '\'\'')}' -ErrorAction Stop; $ok=$true } catch { Write-Output ("PSERR=" + $_.Exception.Message) }`,
+      `if($ok){ Write-Output 'STATUS=200' } else { Write-Output 'STATUS=0' }`,
+      `if($ok -and (Test-Path '${tmp.replace(/'/g, '\'\'')}')) { $fs=[IO.File]::OpenRead('${tmp.replace(/'/g, '\'\'')}'); Write-Output ("CONTENT_LENGTH=" + $fs.Length); $fs.Close() }`,
     ].filter(Boolean).join('; ')
     const { spawn } = require('child_process')
     const child = spawn('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', psScript], {
