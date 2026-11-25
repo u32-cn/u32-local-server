@@ -16,7 +16,7 @@ All notable changes to this project will be documented in this file.
 - 🔒 `/config/api` 拒绝名单扩展：`add`/`remove`/`setAllowWrite`/`resolvePath` 之外，`/access-dialog/api/grant` 无 token 直调一律 403（AI 不得程序化写授权）
 - 🎨 `/access-dialog` 授权对话框重做布局：单栏紧凑——路径与「浏览」合成一个输入组（浏览贴在路径框右端）、路径可直接粘贴回车校验（不存在自动回退到上级并提示）、权限改分段控件且**默认读写**；删掉页内 AI 行为约束提示条与 token 有效期说明（机制不变，只是不占版面）；预填路径改为加载时一次校验
 - 🎨 授权弹窗尺寸 800×720 → 560×480（与紧凑布局匹配，`/config` 页、`/picker` 侧栏、`/access-guide` 示例三处入口统一）；`docs/readme/file-access.md` 文案同步
-- ✨ 授权结果/取消后 3 秒自动关闭窗口，不再需要手动关
+- ✨ 授权成功后提示发出即自动关闭窗口；「取消」直接关窗，无需手动关
 - 📝 AI 行为约束更新：新增访问规则只能引导用户打开 `/access-dialog`（或执行 `u32-ls access`），由用户点「允许」写入
 
 ### Docs

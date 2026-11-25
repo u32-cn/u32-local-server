@@ -207,16 +207,18 @@ function show(msg, isErr) {
   resultBox.classList.toggle('err', !!isErr)
   resultBox.textContent = msg
 }
-// 结果展示后自动关窗：允许成功、取消都走这里
-// window.close() 只对脚本打开的窗口（或 history 长度 1 的标签）生效；被拒时 4 秒后提示手动关闭
+// 结果展示后立即关窗：留一帧让提示渲染出来再关
+// window.close() 只对脚本打开的窗口（或 history 长度 1 的标签）生效；被拒时追加手动关闭提示
 let closeTimer = null
 function showAndClose(msg, isErr) {
   show(msg, isErr)
   if (closeTimer) return
-  closeTimer = setTimeout(function() { window.close() }, 3000)
-  setTimeout(function() {
-    resultBox.textContent += '　（浏览器未允许自动关闭，请手动关闭本窗口）'
-  }, 4000)
+  closeTimer = setTimeout(function() {
+    window.close()
+    setTimeout(function() {
+      resultBox.textContent += '　（浏览器未允许自动关闭，请手动关闭本窗口）'
+    }, 400)
+  }, 60)
 }
 function hideResult() { resultBox.style.display = 'none' }
 function setWarning(msg) {
@@ -261,7 +263,7 @@ async function grant() {
     })
     const r = await res.json()
     if (r.ok) {
-      showAndClose('已允许：' + r.path + '（' + (r.write ? '读写' : '只读') + '），3 秒后自动关闭')
+      showAndClose('已允许：' + r.path + '（' + (r.write ? '读写' : '只读') + '）')
     } else {
       show('操作失败：' + (r.error || '未知错误') + '，请关闭后重新打开授权窗口', true)
       grantBtn.disabled = false
@@ -279,7 +281,7 @@ pathInput.addEventListener('input', function() {
 pathInput.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') { e.preventDefault(); verify(pathInput.value) }
 })
-function closeWindow() { showAndClose('已取消，3 秒后自动关闭') }
+function closeWindow() { window.close() }
 function openBrowse() {
   // token 经同源 iframe src 传给浏览页（iframe src 不进历史、外部页面读不到，不破坏安全模型）
   const frame = document.getElementById('browse-frame')
