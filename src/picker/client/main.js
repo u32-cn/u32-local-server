@@ -2,7 +2,7 @@
 // 依赖注入：list.js（列表渲染）、nav.js（导航/侧栏）、actions.js（工具条/右键菜单动作）、ui.js（图标与自绘弹窗）
 
 import { loadIcons, mountIcons, showMessage, showConfirm, escapeHtml } from './ui.js'
-import { createList, typeFilterExts } from './list.js'
+import { createList, typeFilterExts, getShowHidden, setShowHidden } from './list.js'
 import { createNav } from './nav.js'
 import { createActions, rememberFilename } from './actions.js'
 
@@ -18,7 +18,6 @@ const state = {
   view: 'details',
   filter: '',
   typeValue: cfg.type || '*',
-  collapsed: {},
 }
 
 const els = {
@@ -77,6 +76,17 @@ function rootApiPath(path) {
 
 function getJson(path) {
   return fetch(apiPath(path)).then(r => r.json())
+}
+
+// 授权弹窗关闭后刷新允许列表：cfg.roots 是页面加载时的快照，不刷新则新授权目录不出现
+function refreshRoots() {
+  return fetch(rootApiPath('roots')).then(r => r.json()).then(data => {
+    if (data && data.ok && Array.isArray(data.roots)) {
+      cfg.roots = data.roots
+    }
+  }).catch(() => {
+    // 刷新失败保持旧值，下次打开弹窗再试
+  })
 }
 
 function parentName(p) {
@@ -261,8 +271,6 @@ function bindEvents() {
   })
 
   els.listBody.addEventListener('click', ev => {
-    const group = ev.target.closest('.group-head')
-    if (group) return list.toggleGroup(group.dataset.group)
     const row = ev.target.closest('.entry')
     if (!row || row.dataset.selectable === '0') return
     list.selectPath(row.dataset.path)
@@ -311,17 +319,23 @@ function bindEvents() {
   els.newFolderBtn.addEventListener('click', () => actions.newFolder())
   els.helpBtn.addEventListener('click', () => actions.showHelp())
   els.configBtn.addEventListener('click', () => {
-    // 打开授权对话框（相对路径：/picker → /access-dialog；反代 /xyz/picker → /xyz/access-dialog）；
-    // 弹窗屏幕居中；关闭后刷新侧栏允许目录
+    // 打开授权对话框：按页面路径前缀拼同层路径（/picker → /access-dialog；反代 /xyz/picker → /xyz/access-dialog），
+    // 不能用相对 '../access-dialog'（部分场景解析错误）；弹窗屏幕居中；关闭后刷新 roots 再重绘侧栏
+    const pagePath = location.pathname.replace(/\/+$/, '')
+    const dialogUrl = pagePath.slice(0, pagePath.lastIndexOf('/')) + '/access-dialog'
     const w = 560, h = 480
     const x = Math.max(0, (screen.width - w) / 2 + (screen.availLeft || 0))
     const y = Math.max(0, (screen.availHeight - h) / 2 + (screen.availTop || 0))
-    const win = window.open('../access-dialog', 'u32-access-dialog', 'width=' + w + ',height=' + h + ',left=' + x + ',top=' + y)
-    if (win) win.focus()
+    const win = window.open(dialogUrl, 'u32-access-dialog', 'width=' + w + ',height=' + h + ',left=' + x + ',top=' + y)
+    if (!win) {
+      showMessage('弹窗被浏览器拦截，请允许弹窗后重试。\n也可直接打开地址：\n' + dialogUrl, { icon: 'warning' })
+      return
+    }
+    win.focus()
     const timer = setInterval(() => {
       if (win.closed) {
         clearInterval(timer)
-        nav.renderSidebar()
+        refreshRoots().then(nav.renderSidebar)
       }
     }, 500)
   })

@@ -2,6 +2,7 @@
 // 由 main.js 注入 { state, cfg, els, list, nav, api, emitSelect }，避免与状态机耦合
 
 import { showMessage, showPrompt, showMenu } from './ui.js'
+import { getShowHidden, setShowHidden } from './list.js'
 
 const FILENAMES_KEY = 'u32picker.filenames'
 
@@ -43,6 +44,8 @@ export function createActions({ state, cfg, els, list, nav, api, emitSelect }) {
       { label: '按修改日期排序', action: () => list.setSort('mtime') },
       { label: '按类型排序', action: () => list.setSort('type') },
       { label: '按大小排序', action: () => list.setSort('size') },
+      { separator: true },
+      { label: (getShowHidden() ? '✓ ' : '') + '显示隐藏的项目', action: () => { setShowHidden(!getShowHidden()); list.render() } },
       { separator: true },
       { label: '新建文件夹', action: newFolder, disabled: !state.write },
     ])

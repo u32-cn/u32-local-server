@@ -1,32 +1,24 @@
-// picker 列表渲染：排序 / 日期分组 / 搜索与类型过滤 / 详细信息与大图标视图
+// picker 列表渲染：排序 / 搜索与类型过滤 / 隐藏项过滤 / 详细信息与大图标视图
 // 视图与排序状态放在共享 state 上，main.js 只负责事件绑定与选中动作
 
 import { escapeHtml as esc, escapeAttr as escAttr, icon } from './ui.js'
 
-const GROUP_ORDER = ['今天', '昨天', '本周早些时候', '上周', '更早']
+const HIDDEN_KEY = 'u32picker.showHidden'
 
-function startOfDay(d) {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+export function getShowHidden() {
+  try {
+    return localStorage.getItem(HIDDEN_KEY) === '1'
+  } catch {
+    return false
+  }
 }
 
-function dayDiff(iso) {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return 999999
-  return Math.floor((startOfDay(new Date()) - startOfDay(d)) / 86400000)
-}
-
-function groupOf(iso) {
-  const diff = dayDiff(iso)
-  if (diff <= 0) return '今天'
-  if (diff === 1) return '昨天'
-  const today = startOfDay(new Date())
-  const weekDay = today.getDay() || 7
-  const monday = new Date(today.getTime() - (weekDay - 1) * 86400000)
-  const d = new Date(iso)
-  if (d >= monday) return '本周早些时候'
-  const lastMonday = new Date(monday.getTime() - 7 * 86400000)
-  if (d >= lastMonday) return '上周'
-  return '更早'
+export function setShowHidden(v) {
+  try {
+    localStorage.setItem(HIDDEN_KEY, v ? '1' : '0')
+  } catch {
+    // 隐私模式/配额满时静默失败
+  }
 }
 
 function joinPath(base, name) {
@@ -76,7 +68,8 @@ export function typeFilterExts(value) {
 }
 
 export function createList({ state, cfg, els, onSelectionChange }) {
-  function passesFilter(e, exts, keyword) {
+  function passesFilter(e, exts, keyword, showHidden) {
+    if (!showHidden && e.name.charAt(0) === '.') return false
     if (keyword && e.name.toLowerCase().indexOf(keyword) === -1) return false
     if (exts && e.type === 'file') {
       if (exts.indexOf(extOf(e.name)) === -1) return false
@@ -99,20 +92,14 @@ export function createList({ state, cfg, els, onSelectionChange }) {
     return a.name.localeCompare(b.name, 'zh', { numeric: true }) * d
   }
 
-  // 可见条目：过滤 → 排序 → 按日期分组（分组顺序固定）
+  // 可见条目：过滤 → 排序（扁平列表，不分组）
   function computeVisible() {
     const exts = typeFilterExts(state.typeValue)
     const keyword = (state.filter || '').trim().toLowerCase()
-    const list = state.entries
-      .filter(e => passesFilter(e, exts, keyword))
+    const showHidden = getShowHidden()
+    return state.entries
+      .filter(e => passesFilter(e, exts, keyword, showHidden))
       .sort(compare)
-    const groups = new Map()
-    for (const e of list) {
-      const g = groupOf(e.mtime)
-      if (!groups.has(g)) groups.set(g, [])
-      groups.get(g).push(e)
-    }
-    return GROUP_ORDER.filter(g => groups.has(g)).map(g => ({ key: g, items: groups.get(g) }))
   }
 
   function rowType(e) {
@@ -141,44 +128,28 @@ export function createList({ state, cfg, els, onSelectionChange }) {
   }
 
   function render() {
-    const groups = computeVisible()
-    let html = ''
-    for (const g of groups) {
-      if (state.view === 'details') {
-        const collapsed = state.collapsed[g.key] === true
-        html += '<div class="group-head' + (collapsed ? ' collapsed' : '') + '" data-group="' + escAttr(g.key) + '" data-u32-name="group-head">' +
-          icon('chevron-down', 'group-chevron') + '<span>' + esc(g.key) + '</span></div>'
-        if (collapsed) continue
-      }
-      html += g.items.map(renderRow).join('')
-    }
+    const items = computeVisible()
+    const html = items.map(renderRow).join('')
     els.listBody.classList.toggle('grid-view', state.view === 'icons')
     els.listBody.innerHTML = html
-    els.emptyPane.hidden = groups.length > 0
-    if (!groups.length) {
+    els.emptyPane.hidden = items.length > 0
+    if (!items.length) {
       els.emptyPane.textContent = state.filter || state.typeValue !== '*'
         ? '没有匹配的文件（检查搜索词或文件类型筛选）'
         : '此文件夹为空'
     }
     // 选中项若已不在可见列表，清空选中（保留文件名框用户输入）
-    if (state.selected && !visibleItems().some(it => it.path === state.selected.path)) {
+    if (state.selected && !items.some(it => it.path === state.selected.path)) {
       state.selected = null
     }
     updateSortIndicators()
   }
 
-  // 过滤后所有条目（含折叠组内条目，用于上下键导航）
+  // 过滤后所有可选条目（用于上下键导航）
   function visibleItems() {
-    const groups = computeVisible()
-    const res = []
-    for (const g of groups) {
-      if (state.view === 'details' && state.collapsed[g.key] === true) continue
-      for (const e of g.items) {
-        if (cfg.dirOnly && e.type !== 'dir') continue
-        res.push({ name: e.name, type: e.type, path: joinPath(state.curPath, e.name) })
-      }
-    }
-    return res
+    return computeVisible()
+      .filter(e => !(cfg.dirOnly && e.type !== 'dir'))
+      .map(e => ({ name: e.name, type: e.type, path: joinPath(state.curPath, e.name) }))
   }
 
   function updateSortIndicators() {
@@ -243,11 +214,6 @@ export function createList({ state, cfg, els, onSelectionChange }) {
     render()
   }
 
-  function toggleGroup(key) {
-    state.collapsed[key] = state.collapsed[key] !== true
-    render()
-  }
-
   function entryAt(path) {
     const e = state.entries.find(it => joinPath(state.curPath, it.name) === path)
     return e || null
@@ -261,7 +227,6 @@ export function createList({ state, cfg, els, onSelectionChange }) {
     setView,
     setFilter,
     setTypeValue,
-    toggleGroup,
     visibleItems,
     entryAt,
     parentName,

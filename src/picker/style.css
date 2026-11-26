@@ -242,9 +242,15 @@ body.no-chrome .titlebar { display: none; }
   color: #5f5f5f;
   cursor: pointer;
 }
-.gear-btn .ico { width: 14px; height: 14px; }
-.gear-btn:hover { background: #e5f1fb; color: #000; }
+.gear-btn .ico { width: 15px; height: 15px; }
+.gear-btn:hover { background: #e5f1fb; color: #0078d7; }
 .side-list { display: flex; flex-direction: column; }
+/* 最近访问限高 5 条（5 × 23px），超出滚动 */
+#recentList.side-list {
+  max-height: 115px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
 .side-item {
   display: flex;
   align-items: center;
@@ -307,24 +313,6 @@ body.no-chrome .titlebar { display: none; }
 .list-wrap { flex: 1 1 auto; min-height: 0; overflow: auto; background: #fff; }
 .list-body { display: flex; flex-direction: column; }
 
-.group-head {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  height: 22px;
-  padding: 0 8px;
-  color: #6d6d6d;
-  font-size: 11px;
-  background: #fff;
-  user-select: none;
-  cursor: pointer;
-  position: sticky;
-  top: 0;
-  z-index: 1;
-}
-.group-head:hover { background: #f6f6f6; }
-.group-head .ico { width: 10px; height: 10px; color: #6d6d6d; }
-
 .entry {
   display: flex;
   align-items: center;
@@ -357,7 +345,6 @@ body.no-chrome .titlebar { display: none; }
   gap: 2px;
   padding: 8px;
 }
-.grid-view .group-head { display: none; }
 .grid-view .entry {
   height: 100px;
   flex-direction: column;

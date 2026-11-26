@@ -4,6 +4,7 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- ✨ `/picker` 交互优化四项：① 侧栏「最近访问」限高 5 条（超出滚动，存储仍保留 10 条）；② 文件列表去掉按日期分组（今天/本周/更早），改为扁平列表，表头排序不变；③ 默认隐藏 `.` 开头的隐藏项，「组织 → 显示隐藏的项目」可切换并 localStorage 记忆；④ 「允许的目录」齿轮按钮重画为线性齿轮图标，并修复授权弹窗关闭后侧栏不刷新的 bug（根因：渲染用的 `cfg.roots` 是页面加载快照，现在关闭后先 `GET /picker/api/roots` 刷新再重绘；弹窗 URL 改为按页面路径前缀拼接、弹窗被拦截时给出提示）
 - 🔁 升级下载支持断点续传：`.part` 跨尝试保留，断线后按 `Range` 从断点续传（最多重试 5 次，退避 3/6/9/12/15s）；`fetchUrl` 放行 HTTP 206；416（.part 已满）按完成处理；大小不符判失败重试；TLS 降级 PowerShell 不支持续传（全量覆盖 .part，等价重头）。实测：12MB 断点续传 5 秒完成，产物 sha256 与清单一致
 - 📝 自动升级链路补详细日志：check/fetchLatest/download 每步打 `[UPDATE]` 日志（console + server.log 双写）——GET URL 与耗时、HTTP 状态与重定向、流式下载每 10% 进度、`res aborted` 中断点字节数、finish 时 got vs expected 大小比对（不符判失败）、落盘路径与最终大小；下载失败原因可直接从日志定位
 
