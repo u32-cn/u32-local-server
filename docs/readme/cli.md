@@ -24,6 +24,7 @@ npm 全局安装后提供 `u32-ls`（别名 `u32-local-server`）命令。安装
 | `u32-ls tray-stop` | 结束托盘进程（读 `tray.lock` 里的 PID 精确结束；安装器升级前自动调用） |
 | `u32-ls update [--check] [-y]` | Windows 安装包自动升级：查 GitHub 最新 Release → 比对版本 → 下载 setup exe 到 `~/.u32-local-server/update/` → 拉起安装向导。`--check` 只查不装，`-y` 免确认。npm 版提示走 `npm i -g u32-local-server@latest` |
 | `u32-ls clear-artifacts` | 清空浏览器桥临时产物目录（等效 `DELETE /bridge/api/artifacts`） |
+| `u32-ls gen-dir-listing <dir> [--deep] [--prune-if <文件名>]...` | 为目录预生成静态清单 `.u32-dir.json`（`--deep` 递归子目录），供 GitHub Pages 等静态托管使用，与动态端点同格式；覆写保留 `created`，见 [dir-listing.md](dir-listing.md)。`--prune-if` 边界文件机制（可重复传，任一命中即剪）：含边界文件的目录**整体跳过**——不生成其清单、不递归子目录，并顺带清掉其自身与子目录下已生成的清单 |
 | `u32-ls version` / `-v` | 版本号 |
 | `u32-ls help` | 帮助（中英文对照） |
 

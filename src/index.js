@@ -45,6 +45,7 @@ Commands:
   url <path>       Get the URL for a local file/directory  获取本地文件/目录的URL
   open [path]      Open home page or file in browser       打开首页或指定文件（无参数打开首页）
   copy-url <path>  Copy URL to clipboard                    复制URL到剪贴板
+  gen-dir-listing <dir> [--deep] [--prune-if <文件名>]...  Generate static .u32-dir.json  为目录预生成静态清单（--deep 递归；--prune-if 边界文件，可重复，命中目录不递归并清其子级存量清单）
   access [path]    Open access dialog to add allow rule     打开授权对话框由用户增加允许目录（唯一写入口）
   register         Register auto-start service              注册开机自启动服务（Windows添加右键菜单）
   unregister       Unregister auto-start service            取消注册开机自启动服务
@@ -94,6 +95,12 @@ if (cmd === 'register' || cmd === 'unregister') {
 if (cmd === 'clear-artifacts') {
   // 手动清空桥产物临时目录（第三层清空：用户随时可清；路径自带 tmp/ 临时语义）
   require('./artifacts').clearFromCli()
+  return
+}
+
+if (cmd === 'gen-dir-listing') {
+  // 静态清单生成：为目录预生成 .u32-dir.json 实体文件（--deep 递归），供静态托管使用
+  require('./cmd-gen-dir-listing').run(process.argv[3], process.argv.slice(4))
   return
 }
 

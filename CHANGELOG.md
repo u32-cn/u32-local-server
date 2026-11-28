@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+- ✨ 新增目录清单标准 `u32-dir-listing`（`.u32-dir.json`，规范见 `/docs/dir-listing.md`，遵循 json-file-format 信封规范：magic/version/meta/data 四字段）：① 动态端点 `GET /file/<目录>/.u32-dir.json`——权限检查对象是目录本身（allow 未命中 403），实体文件优先（校验 magic@version，非法返回 422 不兜底），否则纯内存现场生成不落盘；`/file/<目录>/` HTML 列表页导航区加「清单 JSON」入口；② 静态生成器 `u32-ls gen-dir-listing <dir> [--deep]`——为 GitHub Pages / OSS 等静态托管预生成同格式实体文件（覆写保留 `created`、刷新 `updated`）；③ meta 自定义字段 `u32-origin: dynamic|static` 标示生成方式；动态/静态双实现同格式，消费方只认一种结构；`data` 不含 `path`/`parent` 字段、`title` 不含目录路径——静态实体文件会发布到公网，写入本机绝对路径会泄露目录结构（无消费方依赖，目录由获取 URL 自明）
+
 - ✨ `/picker` 交互优化四项：① 侧栏「最近访问」限高 5 条（超出滚动，存储仍保留 10 条）；② 文件列表去掉按日期分组（今天/本周/更早），改为扁平列表，表头排序不变；③ 默认隐藏 `.` 开头的隐藏项，「组织 → 显示隐藏的项目」可切换并 localStorage 记忆；④ 「允许的目录」齿轮按钮重画为实心齿轮图标（齿顶弧/齿根弧拼接的 8 齿轮廓 + evenodd 中心孔，15px 下仍清晰），并修复授权弹窗关闭后侧栏不刷新的 bug（根因：渲染用的 `cfg.roots` 是页面加载快照，现在关闭后先 `GET /picker/api/roots` 刷新再重绘；弹窗 URL 改为按页面路径前缀拼接、弹窗被拦截时给出提示）；⑤ 全站滚动条改为细圆角样式（12px 槽、6px 圆角滑块、hover/active 递进加深、去掉箭头按钮），替换原 16px 方头滚动条
 - 🔁 升级下载支持断点续传：`.part` 跨尝试保留，断线后按 `Range` 从断点续传（最多重试 5 次，退避 3/6/9/12/15s）；`fetchUrl` 放行 HTTP 206；416（.part 已满）按完成处理；大小不符判失败重试；TLS 降级 PowerShell 不支持续传（全量覆盖 .part，等价重头）。实测：12MB 断点续传 5 秒完成，产物 sha256 与清单一致
 - 📝 自动升级链路补详细日志：check/fetchLatest/download 每步打 `[UPDATE]` 日志（console + server.log 双写）——GET URL 与耗时、HTTP 状态与重定向、流式下载每 10% 进度、`res aborted` 中断点字节数、finish 时 got vs expected 大小比对（不符判失败）、落盘路径与最终大小；下载失败原因可直接从日志定位

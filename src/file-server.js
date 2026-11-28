@@ -6,8 +6,69 @@ const { toPosix } = require('./posix-path')
 const logger = require('./logger')
 const { escapeHtml, relLink, redirect } = require('./utils')
 const { getDefaultConfig } = require('./config')
+const dirListing = require('./dir-listing')
 
 const DEFAULT_MIME_TYPES = getDefaultConfig().file.mime
+
+// JSON 错误响应（与 picker/api 一致的 { ok:false, error } 形态）
+function sendListingError(res, code, error) {
+  res.writeHead(code, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+    'access-control-allow-headers': '*',
+  })
+  return res.end(JSON.stringify({ ok: false, error }))
+}
+
+// 目录清单端点 /file/<目录>/.u32-dir.json：权限对象是目录本身；实体文件优先，校验不过报错不兜底；
+// 无实体文件时现场生成（纯内存，不落盘）
+function serveDirListing(res, parentDir, config) {
+  if (!isAllowed(parentDir, config)) {
+    logger.error(`[FILE-SERVER] Dir listing ACCESS DENIED: ${parentDir}\n`)
+    return sendListingError(res, 403, '路径不在允许列表内，请执行 u32-ls access 弹窗由用户授权；AI 禁止直接改配置')
+  }
+  let stat
+  try {
+    stat = fs.statSync(parentDir)
+  } catch {
+    return sendListingError(res, 404, '目录不存在')
+  }
+  if (!stat.isDirectory()) {
+    return sendListingError(res, 400, '路径不是目录')
+  }
+  const entityFile = path.join(parentDir, dirListing.FILE_NAME)
+  if (fs.existsSync(entityFile) && fs.statSync(entityFile).isFile()) {
+    const r = dirListing.readEntityListing(parentDir)
+    if (!r.ok) {
+      logger.error(`[FILE-SERVER] Dir listing entity invalid: ${r.error}\n`)
+      return sendListingError(res, 422, r.error)
+    }
+    logger.debug(`[FILE-SERVER] Serving entity dir listing: ${entityFile}\n`)
+    res.writeHead(200, {
+      'Content-Type': 'application/json; charset=utf-8',
+      'access-control-allow-origin': '*',
+      'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+      'access-control-allow-headers': '*',
+    })
+    return res.end(JSON.stringify(r.listing))
+  }
+  let listing
+  try {
+    listing = dirListing.buildListing(parentDir, config)
+  } catch (err) {
+    logger.error(`[FILE-SERVER] Dir listing build failed: ${err.message}\n`)
+    return sendListingError(res, 500, '生成目录清单失败: ' + err.message)
+  }
+  logger.debug(`[FILE-SERVER] Serving dynamic dir listing: ${parentDir} (${listing.data.entries.length} entries)\n`)
+  res.writeHead(200, {
+    'Content-Type': 'application/json; charset=utf-8',
+    'access-control-allow-origin': '*',
+    'access-control-allow-methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
+    'access-control-allow-headers': '*',
+  })
+  return res.end(JSON.stringify(listing))
+}
 
 function getMimeType(filePath, customMime = {}) {
   const ext = path.extname(filePath).toLowerCase()
@@ -109,6 +170,13 @@ function directoryListing(dirPath, urlPath, config) {
       </div>
     `
   }
+
+  // 机器可读清单端点（docs/readme/dir-listing.md）；页面 URL 以 / 结尾，相对链接即同目录
+  backButtonsHtml += `
+      <div class="nav-buttons-group">
+        <a href="./.u32-dir.json" class="back-link"><i class="fas fa-code"></i> 清单 JSON</a>
+      </div>
+  `
 
   return `<!DOCTYPE html>
 <html lang="zh-CN">
@@ -423,6 +491,15 @@ function serve(req, res, config) {
 
   const isFileRoute = urlPath.startsWith('/file/')
   const isFileHome = urlPath === '/file' || urlPath === '/file/'
+
+  // 目录清单端点：<目录>/.u32-dir.json（规范见 docs/readme/dir-listing.md）
+  if (urlPath.endsWith('/' + dirListing.FILE_NAME)) {
+    const parentDir = urlPath.slice(0, -('/' + dirListing.FILE_NAME).length)
+    if (!parentDir || !isFileRoute) {
+      return sendListingError(res, 400, '目录清单端点须为 /file/<目录>/.u32-dir.json 形式')
+    }
+    return serveDirListing(res, resolveFilePath(parentDir), config)
+  }
   
   if (isFileHome) {
     logger.debug(`[FILE-SERVER] Serving file home page (allow list)\n`)

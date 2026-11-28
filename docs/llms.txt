@@ -26,6 +26,7 @@
 - [命令行 u32-ls](/docs/cli.md) - 全部子命令与文件位置
 - [本地文件访问 /file/](/docs/file-access.md) - 路径规则、目录浏览；**默认拒绝所有文件，403 先打开 /access-dialog 由用户授权允许列表**
 - [文件写入 API /api/fs](/docs/fs-api.md) - 七个动作（content 为 base64），按路径 只读/读写
+- [目录清单规范 u32-dir-listing](/docs/dir-listing.md) - `.u32-dir.json` 统一目录清单格式（magic/version/meta/data 信封）：`GET /file/<目录>/.u32-dir.json` 动态生成（不落盘），`u32-ls gen-dir-listing <dir> [--deep]` 为静态托管预生成实体文件，双实现同格式
 - [CORS 代理 /proxy/](/docs/cors-proxy.md) - 转发任意 HTTP 请求补 CORS 头
 - [浏览器桥 /bridge](/docs/bridge.md) - 页面注册 → AI 下发指令同步等回包；大产物 HTTP 直传落盘；多实例用 ID短码指定
 - [桥连接机制](/docs/bridge-connection-lifecycle.md) - 心跳、判死时序；排查桥不在线先读这篇
